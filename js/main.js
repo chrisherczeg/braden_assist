@@ -98,13 +98,9 @@ function startProgress() {
 }
 
 async function tick() {
-  await refresh();
+  await Promise.allSettled([refresh(), fetchGameCard()]);
   startProgress();
 }
-
-// Initial fetch + recurring timer
-tick();
-setInterval(tick, REFRESH_MS);
 
 // ─── Game Card (Live or Next) ────────────────────
 const PURDUE_TEAM_ID = "2509";
@@ -403,10 +399,6 @@ function renderNextGame(ev) {
   elGameContent.style.display = "block";
 }
 
-fetchGameCard();
-// Refresh more often during live games (every 30s), otherwise every 5 min
-let gameRefreshId = setInterval(fetchGameCard, 5 * 60_000);
-function setGameRefreshRate(ms) {
-  clearInterval(gameRefreshId);
-  gameRefreshId = setInterval(fetchGameCard, ms);
-}
+// Initial fetch + recurring timer (must be after all declarations)
+tick();
+setInterval(tick, REFRESH_MS);
