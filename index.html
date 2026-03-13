@@ -103,6 +103,22 @@
       line-height: 1;
       margin-bottom: 0.25rem;
       transition: opacity 0.3s;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.15em;
+    }
+
+    .stat-value .divider {
+      font-size: 3rem;
+      color: #555;
+      font-weight: 400;
+    }
+
+    .stat-value .record {
+      font-size: 2.8rem;
+      color: #888;
+      font-weight: 400;
     }
 
     .stat-value.loading {
@@ -188,6 +204,8 @@
       .card { padding: 2rem 1.5rem; }
       .player-name { font-size: 1.8rem; }
       .stat-value { font-size: 4.5rem; }
+      .stat-value .divider { font-size: 2rem; }
+      .stat-value .record { font-size: 1.8rem; }
     }
   </style>
 </head>
@@ -203,7 +221,11 @@
       <div class="player-info">#3 &middot; Guard &middot; Purdue</div>
 
       <div class="stat-label">Career Assists</div>
-      <div class="stat-value loading" id="assist-count">&mdash;</div>
+      <div class="stat-value loading" id="assist-count">
+        <span id="assist-num">&mdash;</span>
+        <span class="divider">/</span>
+        <span class="record">1,076</span>
+      </div>
 
       <div class="breakdown" id="breakdown"></div>
 
@@ -294,7 +316,7 @@
         elCount.classList.add("loading");
         const { total, priorAst, currentAst, currentSeasonName } = await getCareerAssists();
 
-        elCount.textContent = total;
+        document.getElementById("assist-num").textContent = total.toLocaleString();
         elCount.classList.remove("loading");
 
         const parts = [];
