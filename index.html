@@ -61,12 +61,13 @@
     .container {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-wrap: wrap;
+      align-items: stretch;
       justify-content: center;
       padding: 2rem;
+      gap: 1.5rem;
       width: 100%;
-      max-width: 600px;
+      max-width: 1100px;
     }
 
     .card {
@@ -76,6 +77,7 @@
       padding: 2.5rem 3rem;
       text-align: center;
       width: 100%;
+      max-width: 520px;
       box-shadow: 0 0 40px rgba(207, 185, 145, 0.08);
     }
 
@@ -197,17 +199,188 @@
     }
 
     footer {
-      padding: 1.5rem;
+      padding: 2rem 1.5rem 1.5rem;
       text-align: center;
       font-size: 0.75rem;
       color: #555;
       letter-spacing: 0.05em;
+      width: 100%;
+      border-top: 1px solid #222;
     }
 
     footer a {
       color: var(--gold-dim);
       text-decoration: none;
+      transition: color 0.2s;
     }
+
+    footer a:hover {
+      color: var(--gold);
+    }
+
+    .footer-boiler {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      margin-bottom: 0.6rem;
+    }
+
+    .footer-socials {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .footer-socials a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--gray);
+      color: var(--gold-dim);
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .footer-socials a:hover {
+      background: var(--gold);
+      color: var(--black);
+      transform: scale(1.1);
+    }
+
+    .footer-handle {
+      font-size: 0.85rem;
+      color: #888;
+      letter-spacing: 0.03em;
+    }
+
+    .footer-data {
+      color: #444;
+    }
+
+    /* ── Next Game card ── */
+    .game-card { display: flex; flex-direction: column; }
+
+    .game-card .card-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      margin-bottom: 1.4rem;
+    }
+
+    .matchup {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .matchup-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 90px;
+    }
+
+    .matchup-team img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 6px;
+      background: var(--gray);
+      padding: 4px;
+    }
+
+    .matchup-team .team-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--white);
+      line-height: 1.15;
+    }
+
+    .matchup-team .team-rank {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.8rem;
+      color: var(--gold);
+    }
+
+    .matchup-team .team-record {
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    .matchup-vs {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.1rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .game-details {
+      text-align: left;
+      font-size: 0.85rem;
+      color: #aaa;
+      line-height: 1.8;
+    }
+
+    .game-details .detail-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .game-details .detail-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold-dim);
+      min-width: 70px;
+      flex-shrink: 0;
+    }
+
+    .game-details .detail-value {
+      color: #ccc;
+    }
+
+    .game-details .detail-value.live {
+      color: #f44336;
+      font-weight: 700;
+    }
+
+    .game-note {
+      margin-top: 1rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(207, 185, 145, 0.08);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 6px 6px 0;
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      color: var(--gold);
+      letter-spacing: 0.05em;
+      text-align: left;
+    }
+
+    .game-loading, .game-error {
+      color: #666;
+      font-size: 0.85rem;
+      padding: 2rem 0;
+    }
+
+    .game-error { color: #f44336; }
 
     @media (max-width: 480px) {
       .card { padding: 2rem 1.5rem; }
@@ -215,6 +388,7 @@
       .stat-value { font-size: 4.5rem; }
       .stat-value .divider { font-size: 2rem; }
       .stat-value .record { font-size: 1.8rem; }
+      .matchup-team img { width: 44px; height: 44px; }
     }
   </style>
 </head>
@@ -249,10 +423,28 @@
 
       <div class="error-msg" id="error-msg"></div>
     </div>
+
+    <!-- Next Game Card -->
+    <div class="card game-card" id="game-card">
+      <div class="card-title">Next Game</div>
+      <div class="game-loading" id="game-loading">Loading schedule&hellip;</div>
+      <div id="game-content" style="display:none;"></div>
+      <div class="game-error" id="game-error" style="display:none;"></div>
+    </div>
   </div>
 
   <footer>
-    Data via <a href="https://www.espn.com" target="_blank" rel="noopener">ESPN</a> &middot; Refreshes every 45 s
+    <div class="footer-boiler">Boiler Up 🚂</div>
+    <div class="footer-socials">
+      <a href="https://www.linkedin.com/in/chrisherczeg" target="_blank" rel="noopener" aria-label="LinkedIn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/chrisherczeg" target="_blank" rel="noopener" aria-label="Instagram">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+      </a>
+      <span class="footer-handle">@chrisherczeg</span>
+    </div>
+    <div class="footer-data">Data via <a href="https://www.espn.com" target="_blank" rel="noopener">ESPN</a> &middot; Refreshes every 45 s</div>
   </footer>
 
   <script>
@@ -364,6 +556,174 @@
     // Initial fetch + recurring timer
     tick();
     setInterval(tick, REFRESH_MS);
+
+    // ─── Next Game ───────────────────────────────────
+    const PURDUE_TEAM_ID = "2509";
+    const SCHEDULE_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/" + PURDUE_TEAM_ID + "/schedule";
+    const PURDUE_LOGO = "https://a.espncdn.com/i/teamlogos/ncaa/500/2509.png";
+
+    const elGameContent = document.getElementById("game-content");
+    const elGameLoading = document.getElementById("game-loading");
+    const elGameError   = document.getElementById("game-error");
+
+    function toEastern(utcStr) {
+      const dt = new Date(utcStr);
+      return dt.toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        weekday: "long", month: "long", day: "numeric",
+        year: "numeric", hour: "numeric", minute: "2-digit",
+        timeZoneName: "short"
+      });
+    }
+
+    async function fetchNextGame() {
+      try {
+        elGameLoading.style.display = "block";
+        elGameContent.style.display = "none";
+        elGameError.style.display   = "none";
+
+        const data = await espnGet(SCHEDULE_URL);
+        const events = data.events || [];
+        const now = Date.now();
+
+        // Find first non-final game
+        const upcoming = events
+          .filter(ev => {
+            const st = ((ev.competitions || [{}])[0].status || {}).type || {};
+            return st.name !== "STATUS_FINAL";
+          })
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (!upcoming.length) {
+          elGameLoading.style.display = "none";
+          elGameContent.innerHTML = '<div class="game-loading">No upcoming games found.</div>';
+          elGameContent.style.display = "block";
+          return;
+        }
+
+        const ev = upcoming[0];
+        const comp = (ev.competitions || [])[0] || {};
+        const competitors = comp.competitors || [];
+
+        let purdue = null, opponent = null;
+        for (const t of competitors) {
+          if (String((t.team || {}).id) === PURDUE_TEAM_ID) purdue = t;
+          else opponent = t;
+        }
+        if (!opponent) throw new Error("Could not determine opponent");
+
+        const oppTeam = opponent.team || {};
+        const purTeam = (purdue || {}).team || {};
+
+        // Rankings
+        const purRank = (purdue || {}).curatedRank?.current;
+        const oppRank = opponent.curatedRank?.current;
+        const purRankStr = purRank && purRank <= 25 ? `#${purRank}` : "";
+        const oppRankStr = oppRank && oppRank <= 25 ? `#${oppRank}` : "";
+
+        // Records
+        const getRec = (t) => {
+          for (const r of (t.records || [])) { if (r.type === "total") return r.summary || ""; }
+          return (t.records || [])[0]?.summary || "";
+        };
+        const purRec = getRec(purdue || {});
+        const oppRec = getRec(opponent);
+
+        // Venue
+        const venue = comp.venue || {};
+        const venueName = venue.fullName || "";
+        const venueCity = (venue.address || {}).city || "";
+        const venueState = (venue.address || {}).state || "";
+        const venueLoc = [venueCity, venueState].filter(Boolean).join(", ");
+
+        // Broadcast
+        const broadcasts = comp.broadcasts || [];
+        const tvNames = broadcasts.flatMap(b => b.names || []);
+        const tv = tvNames.length ? tvNames.join(", ") : "TBD";
+
+        // Odds
+        const odds = (comp.odds || [])[0] || {};
+        const spread = odds.details || "";
+        const ou = odds.overUnder || "";
+
+        // Status
+        const statusType = ((comp.status || {}).type || {});
+        const isLive = statusType.name === "STATUS_IN_PROGRESS" || statusType.name === "STATUS_HALFTIME";
+        const statusDesc = statusType.description || "";
+
+        // Notes
+        const noteHeadline = ((comp.notes || [])[0] || {}).headline || "";
+        const neutralSite = comp.neutralSite || false;
+        const isHome = (purdue || {}).homeAway === "home";
+
+        // Opponent logo
+        const oppLogo = (oppTeam.logos || [])[0]?.href || "";
+
+        // Build HTML
+        let vsLabel = neutralSite ? "vs" : (isHome ? "vs" : "at");
+
+        let html = `
+          <div class="matchup">
+            <div class="matchup-team">
+              <img src="${PURDUE_LOGO}" alt="Purdue">
+              ${purRankStr ? `<span class="team-rank">${purRankStr}</span>` : ""}
+              <span class="team-name">Purdue</span>
+              ${purRec ? `<span class="team-record">${purRec}</span>` : ""}
+            </div>
+            <span class="matchup-vs">${vsLabel}</span>
+            <div class="matchup-team">
+              <img src="${oppLogo}" alt="${oppTeam.displayName || ""}">
+              ${oppRankStr ? `<span class="team-rank">${oppRankStr}</span>` : ""}
+              <span class="team-name">${oppTeam.shortDisplayName || oppTeam.displayName || ""}</span>
+              ${oppRec ? `<span class="team-record">${oppRec}</span>` : ""}
+            </div>
+          </div>
+          <div class="game-details">`;
+
+        if (isLive) {
+          html += `<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value live">🔴 LIVE — ${statusDesc}</span></div>`;
+        }
+
+        html += `<div class="detail-row"><span class="detail-label">When</span><span class="detail-value">${toEastern(ev.date)}</span></div>`;
+
+        if (venueName) {
+          let venueStr = venueName;
+          if (venueLoc) venueStr += " — " + venueLoc;
+          html += `<div class="detail-row"><span class="detail-label">Venue</span><span class="detail-value">${venueStr}</span></div>`;
+        }
+
+        if (neutralSite) {
+          html += `<div class="detail-row"><span class="detail-label">Site</span><span class="detail-value">Neutral Site</span></div>`;
+        } else {
+          html += `<div class="detail-row"><span class="detail-label">Site</span><span class="detail-value">${isHome ? "Home" : "Away"}</span></div>`;
+        }
+
+        html += `<div class="detail-row"><span class="detail-label">TV</span><span class="detail-value">${tv}</span></div>`;
+
+        if (spread) {
+          let lineStr = spread;
+          if (ou) lineStr += `  |  O/U: ${ou}`;
+          html += `<div class="detail-row"><span class="detail-label">Line</span><span class="detail-value">${lineStr}</span></div>`;
+        }
+
+        html += `</div>`;
+
+        if (noteHeadline) {
+          html += `<div class="game-note">${noteHeadline}</div>`;
+        }
+
+        elGameLoading.style.display = "none";
+        elGameContent.innerHTML = html;
+        elGameContent.style.display = "block";
+      } catch (err) {
+        elGameLoading.style.display = "none";
+        elGameError.textContent = err.message;
+        elGameError.style.display = "block";
+      }
+    }
+
+    fetchNextGame();
+    setInterval(fetchNextGame, 5 * 60_000); // refresh every 5 min
   </script>
 
 </body>
