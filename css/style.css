@@ -1,0 +1,376 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto:wght@300;400;700&display=swap');
+
+:root {
+  --gold: #CFB991;
+  --black: #101010;
+  --dark: #1a1a1a;
+  --gray: #2a2a2a;
+  --white: #FFFFFF;
+  --gold-dim: #a89768;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: var(--black);
+  color: var(--white);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  width: 100%;
+  background: linear-gradient(180deg, var(--dark) 0%, var(--black) 100%);
+  border-bottom: 4px solid var(--gold);
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+
+header h1 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+}
+
+header h1 span {
+  color: var(--white);
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.card {
+  background: var(--dark);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 0 40px rgba(207, 185, 145, 0.08);
+}
+
+.player-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.15rem;
+}
+
+.player-info {
+  font-size: 0.95rem;
+  color: var(--gold-dim);
+  margin-bottom: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.stat-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-family: 'Oswald', sans-serif;
+  font-size: 6rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15em;
+}
+
+.stat-value .divider {
+  font-size: 3rem;
+  color: #555;
+  font-weight: 400;
+}
+
+.stat-value .record {
+  font-size: 2.8rem;
+  color: #888;
+  font-weight: 400;
+}
+
+.stat-value.loading {
+  opacity: 0.3;
+}
+
+.breakdown {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 0.75rem;
+}
+
+.breakdown span {
+  color: #bbb;
+}
+
+.status-bar {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  animation: pulse-anim 2s infinite;
+}
+
+.pulse.error {
+  background: #f44336;
+  animation: none;
+}
+
+@keyframes pulse-anim {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--gray);
+  border-radius: 2px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 1s linear;
+}
+
+.error-msg {
+  color: #f44336;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  display: none;
+}
+
+footer {
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #555;
+  letter-spacing: 0.05em;
+  width: 100%;
+  border-top: 1px solid #222;
+}
+
+footer a {
+  color: var(--gold-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+footer a:hover {
+  color: var(--gold);
+}
+
+.footer-boiler {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  margin-bottom: 0.6rem;
+}
+
+.footer-socials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.footer-socials a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--gray);
+  color: var(--gold-dim);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.footer-socials a:hover {
+  background: var(--gold);
+  color: var(--black);
+  transform: scale(1.1);
+}
+
+.footer-handle {
+  font-size: 0.85rem;
+  color: #888;
+  letter-spacing: 0.03em;
+}
+
+.footer-data {
+  color: #444;
+}
+
+/* ── Next Game card ── */
+.game-card { display: flex; flex-direction: column; }
+
+.game-card .card-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  margin-bottom: 1.4rem;
+}
+
+.matchup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.matchup-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 90px;
+}
+
+.matchup-team img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--gray);
+  padding: 4px;
+}
+
+.matchup-team .team-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--white);
+  line-height: 1.15;
+}
+
+.matchup-team .team-rank {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.8rem;
+  color: var(--gold);
+}
+
+.matchup-team .team-record {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.matchup-vs {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.1rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.game-details {
+  text-align: left;
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.8;
+}
+
+.game-details .detail-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.game-details .detail-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold-dim);
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.game-details .detail-value {
+  color: #ccc;
+}
+
+.game-details .detail-value.live {
+  color: #f44336;
+  font-weight: 700;
+}
+
+.game-note {
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(207, 185, 145, 0.08);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 6px 6px 0;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.85rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+.game-loading, .game-error {
+  color: #666;
+  font-size: 0.85rem;
+  padding: 2rem 0;
+}
+
+.game-error { color: #f44336; }
+
+@media (max-width: 480px) {
+  .card { padding: 2rem 1.5rem; }
+  .player-name { font-size: 1.8rem; }
+  .stat-value { font-size: 4.5rem; }
+  .stat-value .divider { font-size: 2rem; }
+  .stat-value .record { font-size: 1.8rem; }
+  .matchup-team img { width: 44px; height: 44px; }
+}
