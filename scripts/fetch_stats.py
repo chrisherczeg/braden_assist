@@ -13,9 +13,12 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 PLAYER_ID = "5105854"  # Braden Smith, Purdue #3
+PURDUE_TEAM_ID = "2509"
 
 ESPN_BASE = "https://site.api.espn.com/apis"
 ATHLETE_URL = f"{ESPN_BASE}/common/v3/sports/basketball/mens-college-basketball/athletes"
+SCOREBOARD_URL = f"{ESPN_BASE}/site/v2/sports/basketball/mens-college-basketball/scoreboard"
+SUMMARY_URL = f"{ESPN_BASE}/site/v2/sports/basketball/mens-college-basketball/summary"
 
 
 def espn_get(url: str) -> dict:
@@ -86,9 +89,49 @@ def get_career_assists() -> int:
     return prior_seasons_ast + current_season_ast
 
 
+def get_live_game_assists() -> int:
+    """If Purdue has a game currently in progress, return Braden's assists from the live boxscore."""
+    scoreboard = espn_get(SCOREBOARD_URL)
+    for event in scoreboard.get("events", []):
+        status = event.get("status", {}).get("type", {})
+        if status.get("state") != "in":
+            continue
+        for comp in event.get("competitions", []):
+            for team in comp.get("competitors", []):
+                if team.get("team", {}).get("id") == PURDUE_TEAM_ID:
+                    return _assists_from_boxscore(event["id"])
+    return 0
+
+
+def _assists_from_boxscore(game_id: str) -> int:
+    summary = espn_get(f"{SUMMARY_URL}?event={game_id}")
+    for bp in summary.get("boxscore", {}).get("players", []):
+        if bp.get("team", {}).get("id") != PURDUE_TEAM_ID:
+            continue
+        for stat_set in bp.get("statistics", []):
+            labels = stat_set.get("labels", [])
+            if "AST" not in labels:
+                continue
+            ast_idx = labels.index("AST")
+            for athlete in stat_set.get("athletes", []):
+                if athlete.get("athlete", {}).get("id") == PLAYER_ID:
+                    stats = athlete.get("stats", [])
+                    if ast_idx < len(stats):
+                        try:
+                            return int(stats[ast_idx])
+                        except (ValueError, TypeError):
+                            pass
+    return 0
+
+
 def main():
-    total = get_career_assists()
-    print(f"Braden Smith Career Assists: {total}")
+    career = get_career_assists()
+    live = get_live_game_assists()
+    total = career + live
+    if live:
+        print(f"Braden Smith Career Assists: {total}  (includes {live} from live game)")
+    else:
+        print(f"Braden Smith Career Assists: {total}")
 
 
 if __name__ == "__main__":

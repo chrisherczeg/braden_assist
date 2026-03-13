@@ -1,5 +1,9 @@
 const PLAYER_ID = "5105854";
+const PURDUE_TEAM_ID = "2509";
 const BASE = "https://site.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/athletes";
+const ESPN_V2 = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
+const SCOREBOARD_URL = ESPN_V2 + "/scoreboard";
+const SUMMARY_URL = ESPN_V2 + "/summary";
 const REFRESH_MS = 45_000;
 
 const elCount = document.getElementById("assist-count");
@@ -62,17 +66,53 @@ async function getCareerAssists() {
   return { total: priorAst + currentAst, priorAst, currentAst, currentSeasonName };
 }
 
+async function getLiveGameAssists() {
+  try {
+    const scoreboard = await espnGet(SCOREBOARD_URL);
+    for (const event of (scoreboard.events || [])) {
+      const st = (event.status || {}).type || {};
+      if (st.state !== "in") continue;
+      for (const comp of (event.competitions || [])) {
+        for (const team of (comp.competitors || [])) {
+          if ((team.team || {}).id === PURDUE_TEAM_ID || String((team.team || {}).id) === PURDUE_TEAM_ID) {
+            const summary = await espnGet(`${SUMMARY_URL}?event=${event.id}`);
+            for (const bp of ((summary.boxscore || {}).players || [])) {
+              if (String((bp.team || {}).id) !== PURDUE_TEAM_ID) continue;
+              for (const statSet of (bp.statistics || [])) {
+                const labels = statSet.labels || [];
+                const astIdx = labels.indexOf("AST");
+                if (astIdx === -1) continue;
+                for (const athlete of (statSet.athletes || [])) {
+                  if (String((athlete.athlete || {}).id) === PLAYER_ID) {
+                    const val = parseInt((athlete.stats || [])[astIdx], 10);
+                    return isNaN(val) ? 0 : val;
+                  }
+                }
+              }
+            }
+            return 0;
+          }
+        }
+      }
+    }
+  } catch (e) { /* scoreboard unavailable, not critical */ }
+  return 0;
+}
+
 async function refresh() {
   try {
     elCount.classList.add("loading");
-    const { total, priorAst, currentAst, currentSeasonName } = await getCareerAssists();
+    const [career, liveAst] = await Promise.all([getCareerAssists(), getLiveGameAssists()]);
+    const { total, priorAst, currentAst, currentSeasonName } = career;
+    const grandTotal = total + liveAst;
 
-    document.getElementById("assist-num").textContent = total.toLocaleString();
+    document.getElementById("assist-num").textContent = grandTotal.toLocaleString();
     elCount.classList.remove("loading");
 
     const parts = [];
     if (priorAst) parts.push(`<span>${priorAst}</span> prior seasons`);
     if (currentAst || currentSeasonName) parts.push(`<span>${currentAst}</span> ${currentSeasonName || "current season"}`);
+    if (liveAst) parts.push(`<span>${liveAst}</span> live game`);
     elBreakdown.innerHTML = parts.join(" + ");
 
     elPulse.classList.remove("error");
@@ -103,10 +143,7 @@ async function tick() {
 }
 
 // ─── Game Card (Live or Next) ────────────────────
-const PURDUE_TEAM_ID = "2509";
-const ESPN_V2 = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
 const SCHEDULE_URL = ESPN_V2 + "/teams/" + PURDUE_TEAM_ID + "/schedule";
-const SUMMARY_URL = ESPN_V2 + "/summary";
 const PURDUE_LOGO = "https://a.espncdn.com/i/teamlogos/ncaa/500/2509.png";
 
 const elCardTitle   = document.getElementById("game-card-title");
