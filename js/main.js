@@ -436,6 +436,145 @@ function renderNextGame(ev) {
   elGameContent.style.display = "block";
 }
 
+// ─── Previous Game Card ─────────────────────────
+const elPrevCardTitle   = document.getElementById("prev-card-title");
+const elPrevGameContent = document.getElementById("prev-game-content");
+const elPrevGameLoading = document.getElementById("prev-game-loading");
+const elPrevGameError   = document.getElementById("prev-game-error");
+
+async function fetchPrevGameCard() {
+  try {
+    elPrevGameLoading.style.display = "block";
+    elPrevGameContent.style.display = "none";
+    elPrevGameError.style.display   = "none";
+
+    const data = await espnGet(SCHEDULE_URL);
+    const events = data.events || [];
+
+    // Collect all finished games and pick the most recent one
+    const finished = [];
+    for (const ev of events) {
+      const st = ((ev.competitions || [{}])[0].status || {}).type || {};
+      if (st.name === "STATUS_FINAL") finished.push(ev);
+    }
+
+    finished.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (!finished.length) {
+      elPrevGameLoading.style.display = "none";
+      elPrevGameContent.innerHTML = '<div class="game-loading">No completed games found.</div>';
+      elPrevGameContent.style.display = "block";
+      return;
+    }
+
+    await renderPrevGame(finished[0]);
+  } catch (err) {
+    elPrevGameLoading.style.display = "none";
+    elPrevGameError.textContent = err.message;
+    elPrevGameError.style.display = "block";
+  }
+}
+
+async function renderPrevGame(ev) {
+  elPrevCardTitle.textContent = "Last Game";
+
+  const eventId = ev.id || (ev.competitions || [{}])[0].id || "";
+  const summary = await espnGet(`${SUMMARY_URL}?event=${eventId}`);
+  const header = summary.header || {};
+  const comps = header.competitions || [];
+  if (!comps.length) throw new Error("No game data available");
+
+  const comp = comps[0];
+  const statusType = (comp.status || {}).type || {};
+  const competitors = comp.competitors || [];
+
+  let purdue = null, opponent = null;
+  for (const c of competitors) {
+    if (String((c.team || {}).id) === PURDUE_TEAM_ID) purdue = c;
+    else opponent = c;
+  }
+  if (!purdue || !opponent) throw new Error("Could not identify teams");
+
+  const purTeam = purdue.team || {};
+  const oppTeam = opponent.team || {};
+  const purScore = purdue.score || "0";
+  const oppScore = opponent.score || "0";
+  const purRec = parseRecord(purdue.record || "");
+  const oppRec = parseRecord(opponent.record || "");
+  const purRank = purdue.rank;
+  const oppRank = opponent.rank;
+  const purRankStr = purRank && purRank <= 25 ? `#${purRank}` : "";
+  const oppRankStr = oppRank && oppRank <= 25 ? `#${oppRank}` : "";
+  const oppLogo = (oppTeam.logos || [])[0]?.href || "";
+
+  const purWon = parseInt(purScore) > parseInt(oppScore);
+  const purMarker = purWon ? " ◀" : "";
+  const oppMarker = !purWon ? " ◀" : "";
+
+  const resultBadge = purWon
+    ? '<span class="result-badge win">W</span>'
+    : '<span class="result-badge loss">L</span>';
+
+  let html = `
+    ${resultBadge}
+    <div class="scoreboard">
+      <div class="score-row">
+        <img class="score-logo" src="${PURDUE_LOGO}" alt="Purdue">
+        <div class="score-team-info">
+          <span class="score-team-name">${purRankStr ? purRankStr + " " : ""}Purdue</span>
+          ${purRec ? `<span class="score-team-record">${purRec}</span>` : ""}
+        </div>
+        <span class="score-value${purWon ? " winning" : ""}">${purScore}${purMarker}</span>
+      </div>
+      <div class="score-row">
+        <img class="score-logo" src="${oppLogo}" alt="${oppTeam.displayName || ""}">
+        <div class="score-team-info">
+          <span class="score-team-name">${oppRankStr ? oppRankStr + " " : ""}${oppTeam.shortDisplayName || oppTeam.displayName || ""}</span>
+          ${oppRec ? `<span class="score-team-record">${oppRec}</span>` : ""}
+        </div>
+        <span class="score-value${!purWon ? " winning" : ""}">${oppScore}${oppMarker}</span>
+      </div>
+    </div>
+    <div class="final-status">${statusType.detail || "Final"}</div>`;
+
+  // Date and venue from schedule event
+  const schedComp = (ev.competitions || [])[0] || {};
+  const venue = schedComp.venue || {};
+  const venueName = venue.fullName || "";
+  const venueCity = (venue.address || {}).city || "";
+  const venueState = (venue.address || {}).state || "";
+  const venueLoc = [venueCity, venueState].filter(Boolean).join(", ");
+
+  const details = [];
+  if (ev.date) details.push(["Date", toEastern(ev.date)]);
+  if (venueName) {
+    let v = venueName;
+    if (venueLoc) v += " — " + venueLoc;
+    details.push(["Venue", v]);
+  }
+
+  const noteHeadline = ((schedComp.notes || [])[0] || {}).headline || "";
+
+  if (details.length) {
+    html += `<div class="game-details" style="margin-top: 1rem;">`;
+    for (const [label, value] of details) {
+      html += `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${value}</span></div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (noteHeadline) {
+    html += `<div class="game-note">${noteHeadline}</div>`;
+  }
+
+  elPrevGameLoading.style.display = "none";
+  elPrevGameContent.innerHTML = html;
+  elPrevGameContent.style.display = "block";
+}
+
 // Initial fetch + recurring timer (must be after all declarations)
 tick();
 setInterval(tick, REFRESH_MS);
+
+// Fetch previous game once on load (doesn't need recurring refresh)
+fetchPrevGameCard();
