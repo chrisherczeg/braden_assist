@@ -114,6 +114,7 @@ async function refresh() {
     if (grandTotal > RECORD && !confettiFired) {
       confettiFired = true;
       launchConfetti();
+      document.getElementById("record-holder").textContent = "Record held by Braden Smith 🚂";
     }
 
     const parts = [];

@@ -120,6 +120,14 @@ header h1 span {
   opacity: 0.3;
 }
 
+.record-holder {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  margin-top: 0.6rem;
+}
+
 .breakdown {
   font-size: 0.85rem;
   color: #888;
