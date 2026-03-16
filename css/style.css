@@ -168,19 +168,67 @@ header h1 span {
 
 .progress-bar {
   width: 100%;
-  height: 3px;
+  height: 18px;
   background: var(--gray);
-  border-radius: 2px;
+  border-radius: 4px;
   margin-top: 1rem;
   overflow: hidden;
+  position: relative;
+  /* Railroad ties across the full bar */
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 8px,
+    #5a4e3c 8px,
+    #5a4e3c 12px
+  );
+  background-color: #2a2218;
 }
+
+/* Two steel rails running horizontally */
+.progress-bar::before,
+.progress-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #888;
+  border-radius: 1px;
+  z-index: 1;
+}
+.progress-bar::before { top: 3px; }
+.progress-bar::after  { bottom: 3px; }
 
 .progress-bar .fill {
   height: 100%;
-  background: var(--gold);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
   width: 0%;
   transition: width 1s linear;
+  position: relative;
+  z-index: 2;
+  /* Freshly laid golden tracks */
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 8px,
+    #b8a26e 8px,
+    #b8a26e 12px
+  );
+  background-color: #CFB991;
+}
+
+/* Train engine leading the fill */
+.progress-bar .fill::after {
+  content: "🚂";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%) scaleX(-1);
+  font-size: 14px;
+  line-height: 1;
+  z-index: 3;
+  filter: drop-shadow(0 0 3px rgba(0,0,0,0.6));
 }
 
 .error-msg {
