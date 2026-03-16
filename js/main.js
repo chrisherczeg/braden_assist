@@ -244,14 +244,24 @@ function getRec(t) {
   return (t.records || [])[0]?.summary || "";
 }
 
+async function fetchAllEvents() {
+  const allEvents = [];
+  for (const st of [2, 3, 4]) {
+    try {
+      const data = await espnGet(SCHEDULE_URL + "?seasontype=" + st);
+      allEvents.push(...(data.events || []));
+    } catch (e) { /* season type may not exist */ }
+  }
+  return allEvents;
+}
+
 async function fetchGameCard() {
   try {
     elGameLoading.style.display = "block";
     elGameContent.style.display = "none";
     elGameError.style.display   = "none";
 
-    const data = await espnGet(SCHEDULE_URL);
-    const events = data.events || [];
+    const events = await fetchAllEvents();
 
     // Separate live games from upcoming
     let liveEvent = null;
@@ -515,8 +525,7 @@ async function fetchPrevGameCard() {
     elPrevGameContent.style.display = "none";
     elPrevGameError.style.display   = "none";
 
-    const data = await espnGet(SCHEDULE_URL);
-    const events = data.events || [];
+    const events = await fetchAllEvents();
 
     // Collect all finished games and pick the most recent one
     const finished = [];

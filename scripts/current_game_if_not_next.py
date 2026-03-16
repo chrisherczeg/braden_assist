@@ -68,10 +68,16 @@ def format_eastern(dt_utc: datetime) -> str:
 def find_current_or_next_game() -> tuple:
     """
     Search Purdue's schedule for a live game or the next upcoming game.
+    Checks regular season, postseason (March Madness), and conference tournament.
     Returns (event_dict, is_live) where is_live indicates an in-progress game.
     """
-    data = espn_get(SCHEDULE_URL)
-    events = data.get("events", [])
+    events = []
+    for season_type in (2, 3, 4):  # regular season, postseason, off-season/conf tourney
+        try:
+            data = espn_get(f"{SCHEDULE_URL}?seasontype={season_type}")
+            events.extend(data.get("events", []))
+        except Exception:
+            continue
 
     live_game = None
     upcoming = []
@@ -108,7 +114,7 @@ def find_current_or_next_game() -> tuple:
     return upcoming[0][1], False
 
 
-def get_live_scores(event_id: str) -> dict | None:
+def get_live_scores(event_id: str):
     """Fetch live score data from the ESPN summary/event endpoint."""
     data = espn_get(f"{SUMMARY_URL}?event={event_id}")
     header = data.get("header", {})
