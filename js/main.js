@@ -218,10 +218,9 @@ const elGameContent = document.getElementById("game-content");
 const elGameLoading = document.getElementById("game-loading");
 const elGameError   = document.getElementById("game-error");
 
-function toEastern(utcStr) {
+function toLocalTime(utcStr) {
   const dt = new Date(utcStr);
   return dt.toLocaleString("en-US", {
-    timeZone: "America/New_York",
     weekday: "long", month: "long", day: "numeric",
     year: "numeric", hour: "numeric", minute: "2-digit",
     timeZoneName: "short"
@@ -480,7 +479,7 @@ function renderNextGame(ev) {
     html += `<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value live">🔴 LIVE — ${statusDesc}</span></div>`;
   }
 
-  html += `<div class="detail-row"><span class="detail-label">When</span><span class="detail-value">${toEastern(ev.date)}</span></div>`;
+  html += `<div class="detail-row"><span class="detail-label">When</span><span class="detail-value">${toLocalTime(ev.date)}</span></div>`;
 
   if (venueName) {
     let venueStr = venueName;
@@ -622,7 +621,7 @@ async function renderPrevGame(ev) {
   const venueLoc = [venueCity, venueState].filter(Boolean).join(", ");
 
   const details = [];
-  if (ev.date) details.push(["Date", toEastern(ev.date)]);
+  if (ev.date) details.push(["Date", toLocalTime(ev.date)]);
   if (venueName) {
     let v = venueName;
     if (venueLoc) v += " — " + venueLoc;
