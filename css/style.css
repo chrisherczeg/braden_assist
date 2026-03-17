@@ -539,3 +539,73 @@ footer a:hover {
   .stat-value .record { font-size: 1.8rem; }
   .matchup-team img { width: 44px; height: 44px; }
 }
+
+/* ── Notification Bell ── */
+header {
+  position: relative;
+}
+
+.notify-btn {
+  position: absolute;
+  right: 1.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 1.5px solid var(--gold-dim);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold-dim);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.notify-btn:hover {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.notify-btn.subscribed {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+}
+
+/* ── Share Button ── */
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+  padding: 0.5rem 1.2rem;
+  background: none;
+  border: 1.5px solid var(--gold-dim);
+  border-radius: 8px;
+  color: var(--gold-dim);
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.share-btn:hover {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+  transform: scale(1.05);
+}
+
+.share-btn:active {
+  transform: scale(0.97);
+}
+
+.share-btn svg {
+  flex-shrink: 0;
+}

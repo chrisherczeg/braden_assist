@@ -647,7 +647,152 @@ async function renderPrevGame(ev) {
   elPrevGameContent.style.display = "block";
 }
 
+// ─── PWA Service Worker Registration ─────────────
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+// ─── Push Notification Setup ─────────────────────
+const elNotifyBtn = document.getElementById("notify-btn");
+
+function updateNotifyBtn(subscribed) {
+  elNotifyBtn.classList.toggle("subscribed", subscribed);
+  elNotifyBtn.title = subscribed ? "Notifications enabled" : "Enable notifications";
+}
+
+async function checkExistingSubscription() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    elNotifyBtn.style.display = "none";
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    updateNotifyBtn(!!sub);
+  } catch {
+    // Not critical
+  }
+}
+
+elNotifyBtn.addEventListener("click", async () => {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push notifications are not supported in this browser.");
+    return;
+  }
+
+  const reg = await navigator.serviceWorker.ready;
+  const existing = await reg.pushManager.getSubscription();
+
+  if (existing) {
+    await existing.unsubscribe();
+    updateNotifyBtn(false);
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return;
+
+  // Subscribe — generates a subscription object the server would use.
+  // Without a real push server, we use local notifications as a fallback.
+  try {
+    await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: null  // Replace with VAPID public key when you add a push server
+    });
+    updateNotifyBtn(true);
+  } catch {
+    // Fallback: just use Notification API directly (no push server needed)
+    updateNotifyBtn(true);
+    localStorage.setItem("pb_notify", "1");
+  }
+});
+
+// Local notification helpers (fire from the main thread when no push server)
+let _prevAssistTotal = null;
+
+function maybeNotifyMilestone(currentTotal) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (!localStorage.getItem("pb_notify")) return;
+
+  if (_prevAssistTotal !== null && currentTotal > _prevAssistTotal) {
+    // Milestone checks
+    if (currentTotal >= RECORD && _prevAssistTotal < RECORD) {
+      new Notification("🚂 RECORD BROKEN!", {
+        body: `Braden Smith just broke the all-time assist record with ${currentTotal} career assists!`,
+        icon: "/purdue_ballers.png"
+      });
+    } else if (currentTotal % 50 === 0) {
+      new Notification("Purdue Ball", {
+        body: `Braden Smith has reached ${currentTotal} career assists! Boiler Up! 🚂`,
+        icon: "/purdue_ballers.png"
+      });
+    }
+  }
+  _prevAssistTotal = currentTotal;
+}
+
+// ─── Share Stats Card (html2canvas) ──────────────
+const elShareBtn = document.getElementById("share-btn");
+
+elShareBtn.addEventListener("click", async () => {
+  const card = elShareBtn.closest(".card");
+  elShareBtn.style.visibility = "hidden";
+
+  try {
+    const canvas = await html2canvas(card, {
+      backgroundColor: "#101010",
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+
+      // Use Web Share API if available (mobile)
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], "purdue-ball.png", { type: "image/png" })] })) {
+        try {
+          await navigator.share({
+            title: "Purdue Ball — Braden Smith Assist Tracker",
+            text: `Braden Smith: ${document.getElementById("assist-num").textContent} career assists 🚂`,
+            files: [new File([blob], "purdue-ball.png", { type: "image/png" })]
+          });
+        } catch {
+          downloadBlob(blob);
+        }
+      } else {
+        downloadBlob(blob);
+      }
+    }, "image/png");
+  } catch {
+    alert("Could not generate image. Try again.");
+  } finally {
+    elShareBtn.style.visibility = "";
+  }
+});
+
+function downloadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "purdue-ball.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ─── Patched refresh to fire milestone notifications ──
+const _origRefresh = refresh;
+refresh = async function () {
+  await _origRefresh();
+  const numEl = document.getElementById("assist-num");
+  const val = parseInt(numEl.textContent.replace(/,/g, ""), 10);
+  if (!isNaN(val)) maybeNotifyMilestone(val);
+};
+
 // Initial fetch + recurring timer (must be after all declarations)
+checkExistingSubscription();
 tick();
 setInterval(tick, REFRESH_MS);
 

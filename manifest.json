@@ -1,0 +1,23 @@
+{
+  "name": "Purdue Ball — Boilermaker Sports Tracker",
+  "short_name": "Purdue Ball",
+  "description": "Live scores, stats, and schedules for Purdue Boilermakers basketball.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101010",
+  "theme_color": "#CFB991",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "purdue_ballers.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
