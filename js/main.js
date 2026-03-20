@@ -748,15 +748,18 @@ elShareBtn.addEventListener("click", async () => {
 
     // Add Purdueball.com watermark
     const ctx = canvas.getContext("2d");
-    const padding = 10;
-    const fontSize = Math.max(16, Math.round(canvas.width * 0.04));
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);   // reset html2canvas transforms
+    const padding = 14;
+    const fontSize = Math.max(18, Math.round(canvas.width * 0.04));
     const fontSpec = `600 ${fontSize}px 'Oswald', sans-serif`;
     try { await document.fonts.load(fontSpec); } catch { /* use fallback font if load fails */ }
     ctx.font = fontSpec;
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
-    ctx.fillStyle = "rgba(207, 185, 145, 0.55)";
+    ctx.fillStyle = "rgba(207, 185, 145, 0.6)";
     ctx.fillText("purdueball.com", canvas.width - padding, canvas.height - padding);
+    ctx.restore();
 
     canvas.toBlob(async (blob) => {
       if (!blob) return;
@@ -766,7 +769,7 @@ elShareBtn.addEventListener("click", async () => {
         try {
           await navigator.share({
             title: "Purdue Ball — Braden Smith Assist Tracker",
-            text: `Braden Smith: ${document.getElementById("assist-num").textContent} career assists 🚂`,
+            text: `Braden Smith: ${document.getElementById("assist-num").textContent} career assists 🚂\nFollow along at purdueball.com`,
             files: [new File([blob], "purdue-ball.png", { type: "image/png" })]
           });
         } catch {
