@@ -746,6 +746,18 @@ elShareBtn.addEventListener("click", async () => {
       logging: false
     });
 
+    // Add Purdueball.com watermark
+    const ctx = canvas.getContext("2d");
+    const padding = 10;
+    const fontSize = Math.max(16, Math.round(canvas.width * 0.04));
+    const fontSpec = `600 ${fontSize}px 'Oswald', sans-serif`;
+    await document.fonts.load(fontSpec);
+    ctx.font = fontSpec;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    ctx.fillStyle = "rgba(207, 185, 145, 0.55)";
+    ctx.fillText("purdueball.com", canvas.width - padding, canvas.height - padding);
+
     canvas.toBlob(async (blob) => {
       if (!blob) return;
 
