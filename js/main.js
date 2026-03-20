@@ -751,7 +751,7 @@ elShareBtn.addEventListener("click", async () => {
     const padding = 10;
     const fontSize = Math.max(16, Math.round(canvas.width * 0.04));
     const fontSpec = `600 ${fontSize}px 'Oswald', sans-serif`;
-    await document.fonts.load(fontSpec);
+    try { await document.fonts.load(fontSpec); } catch { /* use fallback font if load fails */ }
     ctx.font = fontSpec;
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
