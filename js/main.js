@@ -756,7 +756,7 @@ elShareBtn.addEventListener("click", async () => {
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
     ctx.fillStyle = "rgba(207, 185, 145, 0.55)";
-    ctx.fillText("Purdueball.com", canvas.width - padding, canvas.height - padding);
+    ctx.fillText("purdueball.com", canvas.width - padding, canvas.height - padding);
 
     canvas.toBlob(async (blob) => {
       if (!blob) return;
