@@ -6,7 +6,6 @@ const SCOREBOARD_URL = ESPN_V2 + "/scoreboard";
 const SUMMARY_URL = ESPN_V2 + "/summary";
 const REFRESH_MS = 45_000;
 const RECORD = 1076;
-let confettiFired = false;
 
 const elCount = document.getElementById("assist-count");
 const elBreakdown = document.getElementById("breakdown");
@@ -111,9 +110,7 @@ async function refresh() {
     document.getElementById("assist-num").textContent = grandTotal.toLocaleString();
     elCount.classList.remove("loading");
 
-    if (grandTotal > RECORD && !confettiFired) {
-      confettiFired = true;
-      launchConfetti();
+    if (grandTotal > RECORD) {
       document.getElementById("record-holder").textContent = "Record held by Braden Smith 🚂";
     }
 
@@ -133,65 +130,6 @@ async function refresh() {
     elError.style.display = "block";
     elCount.classList.remove("loading");
   }
-}
-
-// ─── Confetti Explosion ──────────────────────────
-function launchConfetti() {
-  const canvas = document.createElement("canvas");
-  canvas.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999";
-  document.body.appendChild(canvas);
-  const ctx = canvas.getContext("2d");
-  let W, H;
-  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-  resize();
-  window.addEventListener("resize", resize);
-
-  const COLORS = ["#CFB991", "#FFFFFF", "#F5D56E", "#E8C547", "#FFD700", "#C4A44A"];
-  const COUNT = 250;
-  const pieces = [];
-
-  for (let i = 0; i < COUNT; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 4 + Math.random() * 8;
-    pieces.push({
-      x: W / 2, y: H / 2,
-      vx: Math.cos(angle) * speed * (0.6 + Math.random()),
-      vy: Math.sin(angle) * speed * (0.6 + Math.random()) - 3,
-      w: 4 + Math.random() * 6,
-      h: 6 + Math.random() * 10,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      rot: Math.random() * Math.PI * 2,
-      rv: (Math.random() - 0.5) * 0.3,
-      gravity: 0.12 + Math.random() * 0.06,
-      alpha: 1,
-      decay: 0.003 + Math.random() * 0.004
-    });
-  }
-
-  function frame() {
-    ctx.clearRect(0, 0, W, H);
-    let alive = false;
-    for (const p of pieces) {
-      p.x += p.vx;
-      p.vy += p.gravity;
-      p.y += p.vy;
-      p.vx *= 0.99;
-      p.rot += p.rv;
-      p.alpha -= p.decay;
-      if (p.alpha <= 0) continue;
-      alive = true;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
-    }
-    if (alive) requestAnimationFrame(frame);
-    else { canvas.remove(); window.removeEventListener("resize", resize); }
-  }
-  requestAnimationFrame(frame);
 }
 
 // Progress bar animation
