@@ -1,7 +1,33 @@
 const canvas = document.getElementById('gameCanvas');
 const scoreEl = document.getElementById('score');
 const restartButton = document.getElementById('restartButton');
+const topScoresButton = document.getElementById('topScoresButton');
 const ctx = canvas.getContext('2d');
+
+const TOP_SCORES_KEY = 'flappyTopScores';
+
+function loadTopScores() {
+  try {
+    const raw = localStorage.getItem(TOP_SCORES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((n) => Number.isFinite(n)) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveTopScore(score) {
+  const scores = loadTopScores();
+  scores.push(score);
+  scores.sort((a, b) => b - a);
+  const top = scores.slice(0, 3);
+  try {
+    localStorage.setItem(TOP_SCORES_KEY, JSON.stringify(top));
+  } catch (err) {
+    /* ignore storage errors */
+  }
+  return top;
+}
 
 const state = {
   width: 0,
@@ -23,6 +49,7 @@ const state = {
   stars: [],
   pipeWidth: 70,
   groundY: 0,
+  showTopScores: false,
 };
 
 function resetGame() {
@@ -171,6 +198,7 @@ function update(dt) {
 function endGame() {
   state.running = false;
   state.gameOver = true;
+  saveTopScore(state.score);
 }
 
 function drawBackground() {
@@ -277,12 +305,40 @@ function drawOverlay() {
   }
 }
 
+function drawTopScores() {
+  const titleSize = Math.max(18, Math.min(30, state.width * 0.07));
+  const bodySize = Math.max(14, Math.min(20, state.width * 0.05));
+  const cx = state.width / 2;
+  const cy = state.height / 2;
+  const scores = loadTopScores();
+
+  ctx.fillStyle = 'rgba(5, 25, 52, 0.7)';
+  ctx.fillRect(0, 0, state.width, state.height);
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.font = `700 ${titleSize}px Inter, sans-serif`;
+  ctx.fillText('Your Top 3', cx, cy - titleSize);
+
+  ctx.font = `600 ${bodySize}px Inter, sans-serif`;
+  if (scores.length === 0) {
+    ctx.fillText('No scores yet', cx, cy + bodySize);
+  } else {
+    for (let i = 0; i < scores.length; i += 1) {
+      ctx.fillText(`${i + 1}.  ${scores[i]}`, cx, cy - bodySize * 0.2 + i * (bodySize * 1.6));
+    }
+  }
+}
+
 function draw() {
   drawBackground();
   drawPipes();
   drawBird();
   drawGround();
-  drawOverlay();
+  if (state.showTopScores) {
+    drawTopScores();
+  } else {
+    drawOverlay();
+  }
 }
 
 function loop(timestamp) {
@@ -332,7 +388,14 @@ document.addEventListener('gestureend', (event) => event.preventDefault());
 // Prevent double-tap zoom from a quick second tap that still scrolls/zooms.
 canvas.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
 
+topScoresButton.addEventListener('click', () => {
+  state.showTopScores = !state.showTopScores;
+  topScoresButton.textContent = state.showTopScores ? 'Hide' : 'Top 3';
+});
+
 restartButton.addEventListener('click', () => {
+  state.showTopScores = false;
+  topScoresButton.textContent = 'Top 3';
   resetGame();
   startGame();
 });
