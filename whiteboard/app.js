@@ -60,6 +60,14 @@ function endStroke() {
   ctx.closePath();
 }
 
+function preventPageScroll(event) {
+  if (event.target === canvas || drawing) {
+    event.preventDefault();
+  }
+}
+
+document.addEventListener("touchmove", preventPageScroll, { passive: false });
+
 clearBtn.addEventListener("click", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   resizeCanvas();
