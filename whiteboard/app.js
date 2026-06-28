@@ -9,24 +9,30 @@ let drawing = false;
 let lastX = 0;
 let lastY = 0;
 
+function updateColorSwatch() {
+  colorPicker.style.backgroundColor = colorPicker.value;
+}
+
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1;
-  const { width, height } = canvas.getBoundingClientRect();
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const nextWidth = Math.round(width * ratio);
+  const nextHeight = Math.round(height * ratio);
 
-  if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth;
+    canvas.height = nextHeight;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 }
 
 function getPoint(event) {
   const rect = canvas.getBoundingClientRect();
-  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+  const point = event.touches?.[0] || event;
   return {
-    x: clientX - rect.left,
-    y: clientY - rect.top,
+    x: point.clientX - rect.left,
+    y: point.clientY - rect.top,
   };
 }
 
@@ -60,21 +66,12 @@ function endStroke() {
   ctx.closePath();
 }
 
-function isInteractiveControl(target) {
-  return !!(target && target.closest && target.closest(".controls"));
-}
-
-function blockTouch(event) {
-  if (isInteractiveControl(event.target)) return;
-  event.preventDefault();
-}
-
-document.addEventListener("touchstart", blockTouch, { passive: false });
-document.addEventListener("touchmove", blockTouch, { passive: false });
-
 clearBtn.addEventListener("click", () => {
+  drawing = false;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  resizeCanvas();
+  ctx.restore();
 });
 
 saveBtn.addEventListener("click", () => {
@@ -84,11 +81,19 @@ saveBtn.addEventListener("click", () => {
   link.click();
 });
 
-canvas.addEventListener("pointerdown", beginStroke);
-canvas.addEventListener("pointermove", drawStroke);
-canvas.addEventListener("pointerup", endStroke);
-canvas.addEventListener("pointerleave", endStroke);
-canvas.addEventListener("pointercancel", endStroke);
+colorPicker.addEventListener("input", updateColorSwatch);
+updateColorSwatch();
+
+canvas.addEventListener("touchstart", beginStroke, { passive: false });
+canvas.addEventListener("touchmove", drawStroke, { passive: false });
+canvas.addEventListener("touchend", endStroke);
+canvas.addEventListener("touchcancel", endStroke);
+
+canvas.addEventListener("mousedown", beginStroke);
+canvas.addEventListener("mousemove", drawStroke);
+window.addEventListener("mouseup", endStroke);
+canvas.addEventListener("mouseleave", endStroke);
 
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", resizeCanvas);
 window.addEventListener("load", resizeCanvas);
