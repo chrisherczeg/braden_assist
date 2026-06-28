@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Whiteboard</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="toolbar">
+        <h1>Whiteboard</h1>
+        <div class="controls">
+          <label class="control">
+            <span>Color</span>
+            <input id="colorPicker" type="color" value="#1f2937" />
+          </label>
+          <label class="control">
+            <span>Brush</span>
+            <input id="brushSize" type="range" min="1" max="24" value="4" />
+          </label>
+          <button id="clearBtn" type="button">Clear</button>
+          <button id="saveBtn" type="button">Save PNG</button>
+        </div>
+      </header>
+      <main class="canvas-wrap">
+        <canvas id="board" aria-label="Whiteboard canvas"></canvas>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
