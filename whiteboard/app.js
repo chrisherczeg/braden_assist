@@ -60,13 +60,17 @@ function endStroke() {
   ctx.closePath();
 }
 
+function isInteractiveControl(target) {
+  return !!(target && target.closest && target.closest(".controls"));
+}
+
 function blockTouch(event) {
+  if (isInteractiveControl(event.target)) return;
   event.preventDefault();
 }
 
-canvas.addEventListener("touchstart", blockTouch, { passive: false });
-canvas.addEventListener("touchmove", blockTouch, { passive: false });
-canvas.addEventListener("touchend", blockTouch, { passive: false });
+document.addEventListener("touchstart", blockTouch, { passive: false });
+document.addEventListener("touchmove", blockTouch, { passive: false });
 
 clearBtn.addEventListener("click", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
