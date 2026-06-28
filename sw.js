@@ -1,4 +1,4 @@
-const CACHE_NAME = "purdue-ball-v1";
+const CACHE_NAME = "purdue-ball-v2";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -35,6 +35,22 @@ self.addEventListener("fetch", (e) => {
   // ESPN API calls: always go to network (live data)
   if (url.hostname.includes("espn")) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Whiteboard: always network-first so the latest version loads
+  if (url.origin === self.location.origin && url.pathname.startsWith("/whiteboard")) {
+    e.respondWith(
+      fetch(e.request)
+        .then((resp) => {
+          if (resp && resp.status === 200 && resp.type === "basic") {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          }
+          return resp;
+        })
+        .catch(() => caches.match(e.request))
+    );
     return;
   }
 
