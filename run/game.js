@@ -69,8 +69,8 @@ const state = {
   flash: 0,
 };
 
-const GRAVITY = 70;
-const JUMP_V = 22;
+const GRAVITY = 130;
+const JUMP_V = 38;
 
 function f() { return state.W * 0.9; }
 
@@ -276,7 +276,7 @@ function win(x, y, w, h, s) {
 function drawObstacle(o, camX) {
   if (o.z < 0.4) return;
   const p = project(LANE_X[o.lane] * LANE_W, 0, o.z, camX);
-  const w = p.scale * 1.1; const h = p.scale * (o.type === 'tall' ? 3 : 1.4);
+  const w = p.scale * 1.1; const h = p.scale * (o.type === 'tall' ? 3 : 0.8);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(p.sx, p.groundY, w * 0.6, w * 0.18, 0, 0, 7); ctx.fill();
   ctx.fillStyle = o.type === 'tall' ? '#7a1f1f' : '#222';
   ctx.fillRect(p.sx - w / 2, p.groundY - h, w, h);
@@ -285,15 +285,15 @@ function drawObstacle(o, camX) {
 
 function drawCoin(c, camX) {
   if (c.z < 0.4) return;
-  const p = project(LANE_X[c.lane] * LANE_W, 1, c.z, camX);
-  const r = p.scale * 0.5;
+  const p = project(LANE_X[c.lane] * LANE_W, 0.7, c.z, camX);
+  const r = p.scale * 0.22;
   ctx.fillStyle = '#caa84a'; ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.fill();
   ctx.fillStyle = '#f3dd86'; ctx.beginPath(); ctx.arc(p.sx, p.sy, r * 0.62, 0, 7); ctx.fill();
 }
 
 function drawHero() {
   const cx = state.W / 2; const bob = Math.sin(state.bob * 2) * 6;
-  const jmp = state.player.h * 14;
+  const jmp = state.player.h * 22;
   const y = state.H * 0.92 + bob - jmp;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(cx, state.H * 0.93, 60, 14, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#000'; ctx.fillRect(cx - 34, y - 90, 68, 90);
@@ -338,7 +338,7 @@ function loop(t) {
 }
 function start() { if (state.gameOver) reset(); state.started = true; state.running = true; state.showTop = false; }
 
-canvas.addEventListener('pointerdown', () => { if (!state.started) start(); else if (!state.gameOver) jump(); });
+canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') return; if (!state.started) start(); else if (!state.gameOver) jump(); });
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!state.started) start(); else if (!state.gameOver) jump(); }
   else if (e.code === 'ArrowLeft' || e.code === 'KeyA') lane(-1);
@@ -348,7 +348,9 @@ let ts = null;
 canvas.addEventListener('touchstart', (e) => { ts = e.changedTouches[0]; }, { passive: true });
 canvas.addEventListener('touchend', (e) => {
   if (!ts) return; const t = e.changedTouches[0]; const dx = t.clientX - ts.clientX; const dy = t.clientY - ts.clientY;
-  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) lane(dx > 0 ? 1 : -1); else if (dy < -30) jump(); ts = null;
+  if (Math.abs(dx) > 30 || Math.abs(dy) > 30) { if (Math.abs(dx) > Math.abs(dy)) lane(dx > 0 ? 1 : -1); else if (dy < 0) jump(); }
+  else if (!state.started) start(); else if (!state.gameOver) jump();
+  ts = null;
 }, { passive: true });
 restartButton.addEventListener('click', () => { reset(); start(); });
 topScoresButton.addEventListener('click', () => { state.showTop = !state.showTop; if (state.started && !state.gameOver) state.running = !state.showTop; });
