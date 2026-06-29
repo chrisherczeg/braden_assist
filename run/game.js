@@ -140,7 +140,7 @@ function end() {
 
 function update(dt) {
   if (!state.running) return;
-  state.speed = Math.min(46, state.speed + dt * 1.1);
+  state.speed = Math.min(46, state.speed + dt * 1.05);
   state.distance += state.speed * dt;
   state.bob += state.speed * dt;
 
@@ -322,7 +322,6 @@ function drawHero() {
   ctx.fillStyle = SKIN; ctx.beginPath(); ctx.moveTo(cx - 12, y - 86); ctx.lineTo(cx + 12, y - 86); ctx.lineTo(cx, y - 66); ctx.closePath(); ctx.fill();
   // SMITH 3
   ctx.fillStyle = BLK; ctx.textAlign = 'center';
-  ctx.font = 'bold 13px Inter'; ctx.fillText('SMITH', cx, y - 58);
   ctx.font = 'bold 30px Inter'; ctx.fillText('3', cx, y - 28);
 
   // arms swinging
