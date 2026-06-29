@@ -2,6 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const distanceEl = document.getElementById('distance');
 const restartButton = document.getElementById('restartButton');
 const topScoresButton = document.getElementById('topScoresButton');
+const charButton = document.getElementById('charButton');
 const ctx = canvas.getContext('2d');
 
 const TOP_SCORES_KEY = 'purdueRunTopScores';
@@ -67,6 +68,7 @@ const state = {
   showTop: false,
   shake: 0,
   flash: 0,
+  gender: localStorage.getItem('purdueRunGender') || 'guy',
 };
 
 const GRAVITY = 130;
@@ -331,7 +333,14 @@ function drawHero() {
   // neck + head + hair
   ctx.fillStyle = SKIN; ctx.fillRect(cx - 7, y - 96, 14, 12);
   ctx.beginPath(); ctx.arc(cx, y - 108, 20, 0, 7); ctx.fill();
-  ctx.fillStyle = '#2a1c10'; ctx.beginPath(); ctx.arc(cx, y - 116, 20, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#2a1c10';
+  if (state.gender === 'girl') {
+    ctx.beginPath(); ctx.arc(cx, y - 110, 22, Math.PI, 0); ctx.fill();
+    ctx.fillRect(cx - 22, y - 110, 44, 16); // side hair
+    ctx.beginPath(); ctx.ellipse(cx, y - 78, 9, 22, 0, 0, 7); ctx.fill(); // ponytail
+  } else {
+    ctx.beginPath(); ctx.arc(cx, y - 116, 20, Math.PI, 0); ctx.fill();
+  }
 }
 
 function render() {
@@ -383,6 +392,12 @@ canvas.addEventListener('touchend', (e) => {
   ts = null;
 }, { passive: true });
 restartButton.addEventListener('click', () => { reset(); start(); });
+charButton.textContent = state.gender === 'girl' ? 'Guy' : 'Girl';
+charButton.addEventListener('click', () => {
+  state.gender = state.gender === 'girl' ? 'guy' : 'girl';
+  localStorage.setItem('purdueRunGender', state.gender);
+  charButton.textContent = state.gender === 'girl' ? 'Guy' : 'Girl';
+});
 topScoresButton.addEventListener('click', () => { state.showTop = !state.showTop; if (state.started && !state.gameOver) state.running = !state.showTop; });
 window.addEventListener('resize', resize);
 resize(); requestAnimationFrame(loop);
