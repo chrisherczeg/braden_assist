@@ -295,13 +295,44 @@ function drawHero() {
   const cx = state.W / 2; const bob = Math.sin(state.bob * 2) * 6;
   const jmp = state.player.h * 22;
   const y = state.H * 0.92 + bob - jmp;
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(cx, state.H * 0.93, 60, 14, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.fillRect(cx - 34, y - 90, 68, 90);
-  ctx.fillStyle = '#CFB991'; ctx.fillRect(cx - 30, y - 80, 60, 18);
-  ctx.fillStyle = '#e0b48a'; ctx.beginPath(); ctx.arc(cx, y - 104, 22, 0, 7); ctx.fill();
-  const sw = Math.sin(state.bob * 2) * 14;
-  ctx.strokeStyle = '#000'; ctx.lineWidth = 16; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(cx - 30, y - 70); ctx.lineTo(cx - 50 + sw, y - 30); ctx.moveTo(cx + 30, y - 70); ctx.lineTo(cx + 50 - sw, y - 30); ctx.stroke();
+  const run = state.bob * 2;
+  const SKIN = '#d49a6a', GOLD = '#CEB888', BLK = '#1a1a1a';
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, state.H * 0.93, 56, 13, 0, 0, 7); ctx.fill();
+
+  // legs (running) with sneakers
+  const ls = Math.sin(run) * 26;
+  for (const [side, ph] of [[-1, 0], [1, Math.PI]]) {
+    const sw = Math.sin(run + ph) * 22;
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 17; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx + side * 12, y - 6); ctx.lineTo(cx + side * 12 + sw, y + 36); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx + side * 12 + sw + 4, y + 38, 14, 7, 0, 0, 7); ctx.fill();
+  }
+  // basketball shorts
+  ctx.fillStyle = BLK; ctx.beginPath(); ctx.moveTo(cx - 26, y - 14); ctx.lineTo(cx + 26, y - 14); ctx.lineTo(cx + 24, y + 6); ctx.lineTo(cx + 3, y + 6); ctx.lineTo(cx, y - 4); ctx.lineTo(cx - 3, y + 6); ctx.lineTo(cx - 24, y + 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = GOLD; ctx.fillRect(cx - 26, y - 16, 52, 4);
+
+  // tank top torso (tapered)
+  ctx.fillStyle = GOLD; ctx.beginPath();
+  ctx.moveTo(cx - 30, y - 86); ctx.lineTo(cx + 30, y - 86);
+  ctx.lineTo(cx + 24, y - 12); ctx.lineTo(cx - 24, y - 12); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = BLK; ctx.fillRect(cx - 30, y - 86, 5, 74); ctx.fillRect(cx + 25, y - 86, 5, 74); // armhole trim
+  // straps + neckline (skin between)
+  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.moveTo(cx - 12, y - 86); ctx.lineTo(cx + 12, y - 86); ctx.lineTo(cx, y - 66); ctx.closePath(); ctx.fill();
+  // SMITH 3
+  ctx.fillStyle = BLK; ctx.textAlign = 'center';
+  ctx.font = 'bold 13px Inter'; ctx.fillText('SMITH', cx, y - 58);
+  ctx.font = 'bold 30px Inter'; ctx.fillText('3', cx, y - 28);
+
+  // arms swinging
+  ctx.strokeStyle = SKIN; ctx.lineWidth = 14; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx - 28, y - 80); ctx.lineTo(cx - 48 - ls, y - 36); ctx.moveTo(cx + 28, y - 80); ctx.lineTo(cx + 48 + ls, y - 36); ctx.stroke();
+
+  // neck + head + hair
+  ctx.fillStyle = SKIN; ctx.fillRect(cx - 7, y - 96, 14, 12);
+  ctx.beginPath(); ctx.arc(cx, y - 108, 20, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a1c10'; ctx.beginPath(); ctx.arc(cx, y - 116, 20, Math.PI, 0); ctx.fill();
 }
 
 function render() {
