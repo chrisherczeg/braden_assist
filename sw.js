@@ -1,4 +1,4 @@
-const CACHE_NAME = "purdue-ball-v2";
+const CACHE_NAME = "purdue-ball-v3";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -7,7 +7,10 @@ const PRECACHE = [
   "/purdue_ballers.png",
   "/favicon.ico",
   "/favicon.svg",
-  "/manifest.json"
+  "/manifest.json",
+  "/run/index.html",
+  "/run/styles.css",
+  "/run/game.js"
 ];
 
 // ─── Install: precache shell ────────────────────
