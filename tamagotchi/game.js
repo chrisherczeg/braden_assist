@@ -466,6 +466,7 @@
     if (ui.mode === "main") {
       activateIcon(ICONS[ui.cursor]);
     } else if (ui.mode === "feed") {
+      ui.mode = "main"; // return to main so the feed result (animation/message) is visible
       ui.feedCursor === 0 ? feedMeal() : feedSnack();
     } else if (ui.mode === "status") {
       ui.mode = "main";
