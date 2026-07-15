@@ -64,6 +64,7 @@
       happyZeroSince: 0,
       poopSince: 0,
       careMistakes: 0,
+      sleepPenalized: false,  // light-on-at-bedtime counted once per night
       goodCare: 0,
       call: null,           // 'need' | 'discipline' | null
       nextCallAt: now + rand(CFG.callMinMs, CFG.callMaxMs),
@@ -153,9 +154,11 @@
         0,
         100
       );
-    } else if (state.lightOn) {
-      // Light left on at bedtime is a care mistake.
+      state.sleepPenalized = false; // reset for the next night
+    } else if (state.lightOn && !state.sleepPenalized) {
+      // Light left on at bedtime is a single care mistake per night.
       state.careMistakes += 1;
+      state.sleepPenalized = true;
     }
 
     // Track empty-need neglect windows
@@ -505,6 +508,7 @@
   const H = canvas.height;
   const INK = "#38400f";
   const DIM = "rgba(56,64,15,0.35)";
+  const LCD = "#9bb03f"; // background "off" pixel colour (for eye sparkle etc.)
 
   function px(x, y, w, h, color) {
     ctx.fillStyle = color || INK;
@@ -542,87 +546,198 @@
     ctx.fill();
   }
 
-  // Simple pixel creature per stage, with a bob animation.
+  // ---- Cute pixel characters (outlined LCD style, not solid blobs) ----
+  // 'X' = ink outline/body, 'e' = eye, 'o' = ink detail dot, '.' = LCD green.
+  const SPRITES = {
+    baby: [
+      ".XXXXX.",
+      "X.....X",
+      "X.e.e.X",
+      "X.....X",
+      "X.....X",
+      ".XXXXX.",
+      ".X...X.",
+      "XX...XX",
+    ],
+    child: [
+      "...X...",
+      "..XXX..",
+      ".XXXXX.",
+      "X.....X",
+      "X.e.e.X",
+      "X.....X",
+      "X.....X",
+      ".XXXXX.",
+      ".X...X.",
+      ".XX.XX.",
+    ],
+    teen: [
+      ".X.....X.",
+      ".X.....X.",
+      ".XX...XX.",
+      "X..XXX..X",
+      "X.......X",
+      "X.e...e.X",
+      "X.......X",
+      "X.......X",
+      ".X.....X.",
+      "..XXXXX..",
+      "..X...X..",
+    ],
+    adult: [
+      ".X.......X.",
+      ".XX.....XX.",
+      "X.XXXXXXX.X",
+      "X.........X",
+      "X..e...e..X",
+      "X.........X",
+      "X.........X",
+      ".X.......X.",
+      "..XXXXXXX..",
+      "..X.....X..",
+      ".XX.....XX.",
+    ],
+  };
+
+  function blinkNow() {
+    return Date.now() % 4200 < 170; // occasional cute blink
+  }
+
+  function creatureMood() {
+    const hun = Math.floor(state.hunger);
+    const hap = Math.floor(state.happy);
+    if (state.sick) return "sad";
+    if (hap >= 3 && hun >= 2) return "happy";
+    if (hun === 0 || hap === 0) return "sad";
+    return "neutral";
+  }
+
+  function drawMouth(x, y, m, mood) {
+    const p = (dx, dy) => px(x + dx * m - m / 2, y + dy * m, m, m, INK);
+    if (mood === "happy") {
+      p(-1.4, 0); p(1.4, 0); p(-0.5, 0.7); p(0.5, 0.7);
+    } else if (mood === "sad") {
+      p(-1.4, 0.7); p(1.4, 0.7); p(-0.5, 0); p(0.5, 0);
+    } else {
+      p(-0.5, 0.35); p(0.5, 0.35);
+    }
+  }
+
+  // Draw a sprite grid centered on cx/cy. cx/cy is the visual center.
+  function drawSprite(grid, cx, cy, s, bob, opts) {
+    opts = opts || {};
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const ox = Math.round(cx - (cols * s) / 2);
+    const oy = Math.round(cy - (rows * s) / 2 + (bob ? -Math.round(s * 0.5) : 0));
+    const eyes = [];
+    for (let r = 0; r < rows; r++) {
+      const line = grid[r];
+      for (let c = 0; c < cols; c++) {
+        const ch = line[c];
+        if (ch === "X" || ch === "o") px(ox + c * s, oy + r * s, s, s, INK);
+        else if (ch === "e") eyes.push([c, r]);
+      }
+    }
+    const closed = opts.eyesClosed || blinkNow();
+    let sumCol = 0;
+    let maxRow = 0;
+    eyes.forEach(([c, r]) => {
+      sumCol += c;
+      if (r > maxRow) maxRow = r;
+      const ex = ox + c * s;
+      const ey = oy + r * s;
+      if (closed) {
+        px(ex - 1, ey + s * 0.45, s + 2, Math.max(2, s * 0.22), INK);
+      } else {
+        px(ex, ey, s, s, INK);
+        // sparkle highlight (LCD green) for a lively, cute eye
+        px(ex + s * 0.5, ey + s * 0.12, Math.max(2, s * 0.3), Math.max(2, s * 0.3), LCD);
+      }
+    });
+    if (eyes.length) {
+      const mx = ox + (sumCol / eyes.length + 0.5) * s;
+      const my = oy + (maxRow + 2) * s;
+      drawMouth(mx, my, s * 0.5, opts.mood || "neutral");
+    }
+    if (opts.whiskers) {
+      const wy = oy + Math.round(rows * 0.55) * s;
+      px(ox - s * 0.7, wy, s * 0.8, Math.max(2, s * 0.22), INK);
+      px(ox + cols * s - s * 0.1, wy, s * 0.8, Math.max(2, s * 0.22), INK);
+    }
+    return { ox, oy, cols, rows };
+  }
+
+  // Draw the pet for the current life stage. cx/cy is the visual center.
   function drawCreature(cx, cy, bob) {
-    const s = 6; // pixel size
-    const b = bob ? -s : 0;
-    const put = (gx, gy, col) => px(cx + gx * s, cy + gy * s + b, s, s, col);
+    const stage = state.stage;
+    if (stage === "egg") return drawEgg(cx, cy, bob);
+    const s = 10;
+    const grid = stage === "senior" ? SPRITES.adult : SPRITES[stage] || SPRITES.adult;
+    const half = (grid[0].length * s) / 2;
 
     if (isSleeping()) {
-      // Sleeping blob + Z's
-      for (let gx = -3; gx <= 3; gx++) put(gx, 2, INK);
-      for (let gx = -2; gx <= 2; gx++) put(gx, 1, INK);
-      put(-1, 0, INK); put(1, 0, INK);
-      text("z", cx + 30, cy - 22 + b, 14, INK);
-      text("Z", cx + 42, cy - 34 + b, 18, INK);
+      drawSprite(grid, cx, cy, s, false, {
+        eyesClosed: true,
+        mood: "neutral",
+        whiskers: stage === "senior",
+      });
+      const now = Date.now();
+      const rise = Math.floor(now / 600) % 2 === 0 ? 0 : -4;
+      text("z", cx + half + 6, cy - 12 + rise, 15, INK);
+      text("Z", cx + half + 20, cy - 30 + rise, 21, INK);
       return;
     }
 
-    const stage = state.stage;
-    if (stage === "egg") {
-      drawEgg(cx, cy, bob);
-      return;
-    }
+    drawSprite(grid, cx, cy, s, bob, {
+      mood: creatureMood(),
+      whiskers: stage === "senior",
+    });
 
-    // shared body
-    const body = [
-      [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
-      [-3, 1], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [3, 1],
-      [-3, 2], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2], [3, 2],
-      [-2, 3], [-1, 3], [0, 3], [1, 3], [2, 3],
-    ];
-    let scale = 1;
-    if (stage === "baby") scale = 0.7;
-    if (stage === "teen") scale = 1.1;
-    if (stage === "adult" || stage === "senior") scale = 1.25;
-
-    ctx.save();
-    ctx.translate(cx, cy + b);
-    ctx.scale(scale, scale);
-    body.forEach(([gx, gy]) => px(gx * s, gy * s, s, s, INK));
-    // eyes
-    px(-2 * s, 0, s, s, "#9bb03f");
-    px(1 * s, 0, s, s, "#9bb03f");
-    if (stage === "senior") {
-      // little frown / whiskers
-      px(-3 * s, 1 * s, s, s, "#9bb03f");
-      px(3 * s, 1 * s, s, s, "#9bb03f");
-    }
-    if (state.sick) text("!", -s, -3.4 * s, 20, INK, "center");
-    ctx.restore();
-
-    // Ears/antenna for older stages
-    if (stage === "teen" || stage === "adult" || stage === "senior") {
-      px(cx - 3 * s, cy - 2 * s + b, s, s, INK);
-      px(cx + 2 * s, cy - 2 * s + b, s, s, INK);
+    if (state.sick) {
+      // sweat drop + alert, blinking gently
+      if (Math.floor(Date.now() / 500) % 2 === 0) {
+        text("!", cx + half + 6, cy - (grid.length * s) / 2, 22, INK, "center");
+      }
+      px(cx - half - 4, cy - 2, 4, 6, INK);
     }
   }
 
   function drawEgg(cx, cy, wobble) {
-    const s = 7;
-    const w = wobble ? 3 : -3;
-    ctx.save();
-    ctx.translate(cx + w, cy);
-    const egg = [
-      [-1, -2], [0, -2],
-      [-2, -1], [-1, -1], [0, -1], [1, -1],
-      [-2, 0], [-1, 0], [0, 0], [1, 0],
-      [-3, 1], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
-      [-3, 2], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2],
-      [-2, 3], [-1, 3], [0, 3], [1, 3],
+    const s = 9;
+    const grid = [
+      "...XXX...",
+      "..X...X..",
+      ".X.....X.",
+      ".X..o..X.",
+      "X.......X",
+      "X..o.o..X",
+      "X.......X",
+      ".X.....X.",
+      "..XXXXX..",
     ];
-    egg.forEach(([gx, gy]) => px(gx * s, gy * s, s, s, INK));
-    // zig-zag detail
-    px(-1 * s, 1 * s, s, s, "#9bb03f");
-    px(1 * s, 2 * s, s, s, "#9bb03f");
-    ctx.restore();
+    const tilt = wobble ? 4 : -4;
+    const cols = grid[0].length;
+    const rows = grid.length;
+    const ox = Math.round(cx + tilt - (cols * s) / 2);
+    const oy = Math.round(cy - (rows * s) / 2);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (grid[r][c] === "X" || grid[r][c] === "o") px(ox + c * s, oy + r * s, s, s, INK);
+      }
+    }
   }
 
   function drawPoop(x, y) {
     const s = 5;
-    px(x - 2 * s, y + 2 * s, 4 * s, s);
-    px(x - s, y + s, 2 * s, s);
-    px(x - 0.5 * s, y, s, s);
+    // classic soft-serve swirl pile
+    px(x - s, y - 2 * s, 1.6 * s, s);
+    px(x - 1.6 * s, y - s, 3 * s, s);
+    px(x - 2.6 * s, y, 5 * s, s);
+    px(x - 3 * s, y + s, 6 * s, s);
+    // light notch that suggests the swirl curl
+    px(x + 0.1 * s, y - s, s, s, LCD);
+    px(x - 1 * s, y, s, s, LCD);
   }
 
   function render() {
@@ -637,9 +752,10 @@
     if (ui.mode === "game") return renderGame(bob);
 
     // MAIN
-    // top status glyphs
-    if (state.sick) text("SICK", W - 8, 6, 12, INK, "right");
-    if (isSleeping()) text("SLEEP", W - 8, 6, 12, INK, "right");
+    // top status glyphs (stacked so they never overlap)
+    let labelY = 6;
+    if (state.sick) { text("SICK", W - 8, labelY, 12, INK, "right"); labelY += 16; }
+    if (isSleeping()) { text("SLEEP", W - 8, labelY, 12, INK, "right"); labelY += 16; }
     if (state.call) {
       // blinking call indicator
       if (Math.floor(now / 400) % 2 === 0) text("!", 10, 6, 22, INK);
@@ -647,12 +763,12 @@
 
     // creature
     const cx = W / 2;
-    const cy = H / 2 - 14;
+    const cy = H / 2 - 6;
     drawCreature(cx, cy, bob);
 
     // poop
     for (let i = 0; i < Math.min(state.poop, 3); i++) {
-      drawPoop(40 + i * 34, H - 44);
+      drawPoop(46 + i * 40, H - 40);
     }
 
     // eating / anim overlays
@@ -738,20 +854,17 @@
   }
 
   function drawGamePet(cx, cy, dir, bob) {
-    const s = 7;
-    const b = bob ? -s : 0;
-    const body = [
-      [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
-      [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
-      [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2],
-    ];
-    body.forEach(([gx, gy]) => px(cx + gx * s, cy + gy * s + b, s, s, INK));
-    // eye position shifts with facing direction
-    const ex = dir === 0 ? 0 : dir < 0 ? -1 : 1;
-    px(cx + ex * s, cy + 0 * s + b, s, s, "#9bb03f");
-    // arrow of the guess/turn
-    if (dir < 0) text("<", cx - 5 * s, cy + b, 22, INK, "center");
-    if (dir > 0) text(">", cx + 5 * s, cy + b, 22, INK, "center");
+    const s = 8;
+    const stage = state.stage;
+    const grid = stage === "senior" ? SPRITES.adult
+      : (SPRITES[stage] && stage !== "egg") ? SPRITES[stage] : SPRITES.child;
+    drawSprite(grid, cx, cy, s, bob, {
+      mood: "happy",
+      whiskers: stage === "senior",
+    });
+    const half = (grid[0].length * s) / 2;
+    if (dir < 0) text("<", cx - half - 14, cy - 12, 26, INK, "center");
+    if (dir > 0) text(">", cx + half + 14, cy - 12, 26, INK, "center");
   }
 
   function renderDeath() {
