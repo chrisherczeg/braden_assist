@@ -59,12 +59,10 @@
       poopDueAt: now + rand(CFG.poopMinMs, CFG.poopMaxMs),
       sick: false,
       sickSince: 0,
-      lightOn: true,
       hungerZeroSince: 0,
       happyZeroSince: 0,
       poopSince: 0,
       careMistakes: 0,
-      sleepPenalized: false,  // light-on-at-bedtime counted once per night
       goodCare: 0,
       call: null,           // 'need' | 'discipline' | null
       nextCallAt: now + rand(CFG.callMinMs, CFG.callMaxMs),
@@ -145,7 +143,7 @@
 
     const sleeping = isSleepHour(new Date(now));
 
-    // Stats do not decay while asleep (light should be off).
+    // Stats do not decay while asleep.
     if (!sleeping) {
       state.hunger = clamp(state.hunger - elapsed / CFG.hungerDecayMs, 0, 4);
       state.happy = clamp(state.happy - elapsed / CFG.happyDecayMs, 0, 4);
@@ -154,11 +152,6 @@
         0,
         100
       );
-      state.sleepPenalized = false; // reset for the next night
-    } else if (state.lightOn && !state.sleepPenalized) {
-      // Light left on at bedtime is a single care mistake per night.
-      state.careMistakes += 1;
-      state.sleepPenalized = true;
     }
 
     // Track empty-need neglect windows
@@ -279,12 +272,6 @@
     msg("Sweet snack!");
   }
 
-  function toggleLight() {
-    state.lightOn = !state.lightOn;
-    save();
-    render();
-  }
-
   function giveMedicine() {
     if (!state.sick) return msg("Not sick.");
     state.sick = false;
@@ -397,7 +384,7 @@
 
   // ---- UI / input ------------------------------------------------------
   const ICONS = [
-    "food", "light", "play", "medicine",
+    "food", "play", "medicine",
     "bathroom", "status", "discipline", "attention",
   ];
 
@@ -435,9 +422,6 @@
         ui.mode = "feed";
         ui.feedCursor = 0;
         break;
-      case "light":
-        toggleLight();
-        return;
       case "play":
         startGame();
         return;
@@ -881,7 +865,6 @@
     text(`Good care: ${state.goodCare}`, 24, 46, 15, INK);
     text(`Mistakes:  ${state.careMistakes}`, 24, 74, 15, INK);
     text(`Poop:      ${state.poop}`, 24, 102, 15, INK);
-    text(`Light:     ${state.lightOn ? "ON" : "OFF"}`, 24, 130, 15, INK);
   }
 
   function renderGame(bob) {
@@ -992,6 +975,14 @@
   bA.addEventListener("click", tapHandler(pressA));
   bB.addEventListener("click", tapHandler(pressB));
   bC.addEventListener("click", tapHandler(pressC));
+
+  const bReset = document.getElementById("btnReset");
+  if (bReset) {
+    bReset.addEventListener("click", (e) => {
+      e.preventDefault();
+      reset();
+    });
+  }
 
   // Clicking an on-screen icon jumps the cursor there and activates it.
   iconEls.forEach((el) => {
