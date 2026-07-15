@@ -104,10 +104,27 @@ body {
 }
 
 .lcd-wrap {
+  position: relative;
   background: var(--lcd);
   border-radius: 10px;
   padding: 6px;
   box-shadow: inset 0 0 0 2px #3a4416, inset 0 2px 6px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+/* glossy glass reflection sweeping across the LCD */
+.lcd-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.06) 22%,
+    rgba(255, 255, 255, 0) 46%
+  );
 }
 
 #lcd {

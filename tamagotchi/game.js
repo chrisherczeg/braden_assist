@@ -959,9 +959,18 @@
     }
   }
 
+  // Subtle dot-matrix grid overlay for an authentic segment-LCD feel.
+  function drawLcdGrid() {
+    ctx.fillStyle = "rgba(56,64,15,0.05)";
+    const g = 8;
+    for (let x = g; x < W; x += g) ctx.fillRect(x, 0, 1, H);
+    for (let y = g; y < H; y += g) ctx.fillRect(0, y, W, 1);
+  }
+
   const _render = render;
   render = function () {
     _render();
+    drawLcdGrid();
     syncIcons();
   };
 
