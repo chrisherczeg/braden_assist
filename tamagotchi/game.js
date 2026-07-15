@@ -756,15 +756,24 @@
     let labelY = 6;
     if (state.sick) { text("SICK", W - 8, labelY, 12, INK, "right"); labelY += 16; }
     if (isSleeping()) { text("SLEEP", W - 8, labelY, 12, INK, "right"); labelY += 16; }
-    if (state.call) {
-      // blinking call indicator
-      if (Math.floor(now / 400) % 2 === 0) text("!", 10, 6, 22, INK);
-    }
 
-    // creature
-    const cx = W / 2;
-    const cy = H / 2 - 6;
+    // creature wanders gently across the screen when awake, like a real toy
+    const busy = (ui.anim && now < ui.animUntil);
+    const wander = (!isSleeping() && !busy && state.hatched)
+      ? Math.round(Math.sin(now / 1600) * 42)
+      : 0;
+    const cx = W / 2 + wander;
+    const cy = H / 2 - 10;
+
+    // soft ground shadow
+    drawShadow(cx, cy + 52, bob);
+
     drawCreature(cx, cy, bob);
+
+    // attention call: blinking "!" speech bubble above the pet
+    if (state.call && !isSleeping() && Math.floor(now / 400) % 2 === 0) {
+      drawCallBubble(cx + 34, cy - 46);
+    }
 
     // poop
     for (let i = 0; i < Math.min(state.poop, 3); i++) {
@@ -772,10 +781,10 @@
     }
 
     // eating / anim overlays
-    if (ui.anim && now < ui.animUntil) {
-      if (ui.anim === "eat") text("munch", cx, cy + 50, 13, INK, "center");
+    if (busy) {
+      if (ui.anim === "eat") text("munch", cx, cy + 46, 13, INK, "center");
       if (ui.anim === "heal") text("+", cx + 44, cy - 20, 22, INK, "center");
-      if (ui.anim === "angry") text("grr", cx, cy + 50, 13, INK, "center");
+      if (ui.anim === "angry") text("grr", cx, cy + 46, 13, INK, "center");
     } else {
       ui.anim = null;
     }
@@ -783,25 +792,65 @@
     // transient message
     if (ui.message && now < ui.messageUntil) {
       px(0, H - 26, W, 26, INK);
-      text(ui.message, W / 2, H - 22, 14, "#9bb03f", "center");
+      text(ui.message, W / 2, H - 22, 14, LCD, "center");
     } else if (!state.hatched) {
       px(0, H - 26, W, 26, INK);
-      text("An egg! Wait for it to hatch...", W / 2, H - 22, 12, "#9bb03f", "center");
+      text("An egg! Wait for it to hatch...", W / 2, H - 22, 12, LCD, "center");
     }
+  }
+
+  function drawShadow(cx, y, bob) {
+    const w = bob ? 38 : 46;
+    ctx.fillStyle = DIM;
+    ctx.beginPath();
+    ctx.ellipse(cx, y, w / 2, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawCallBubble(x, y) {
+    // small rounded speech bubble with a "!"
+    px(x - 12, y - 10, 24, 18, INK);
+    px(x - 16, y - 6, 4, 10, INK);
+    px(x - 14, y + 6, 6, 6, INK); // tail
+    text("!", x, y - 8, 14, LCD, "center");
   }
 
   function renderFeed() {
     text("FEED", W / 2, 12, 18, INK, "center");
-    const opts = ["Meal (+hunger)", "Snack (+happy)"];
+    px(W / 2 - 34, 34, 68, 2, INK); // underline
+    const opts = [
+      { label: "Meal", sub: "fills hunger" },
+      { label: "Snack", sub: "fills happy" },
+    ];
     opts.forEach((o, i) => {
-      const y = 70 + i * 40;
+      const y = 62 + i * 52;
       if (i === ui.feedCursor) {
-        px(30, y - 4, W - 60, 30, DIM);
-        text(">", 40, y, 18, INK);
+        px(24, y - 8, W - 48, 44, DIM);
+        text(">", 34, y + 6, 18, INK);
       }
-      text(o, 64, y, 18, INK);
+      if (i === 0) drawBowl(74, y + 14);
+      else drawCandy(74, y + 14);
+      text(o.label, 104, y, 18, INK);
+      text(o.sub, 104, y + 22, 12, INK);
     });
-    text("A: switch   B: choose   C: back", W / 2, H - 22, 12, INK, "center");
+    text("A: switch   B: choose   C: back", W / 2, H - 20, 12, INK, "center");
+  }
+
+  function drawBowl(x, y) {
+    // rice bowl with steam
+    px(x - 14, y, 28, 4, INK);          // rim
+    px(x - 12, y + 4, 24, 8, INK);      // bowl body
+    px(x - 8, y + 12, 16, 4, INK);      // base
+    px(x - 6, y - 4, 4, 4, INK);        // steam
+    px(x + 2, y - 8, 4, 4, INK);
+  }
+
+  function drawCandy(x, y) {
+    // wrapped candy
+    px(x - 6, y - 6, 12, 12, INK);      // body
+    px(x - 12, y - 4, 6, 8, INK);       // left wrapper
+    px(x + 6, y - 4, 6, 8, INK);        // right wrapper
+    px(x - 2, y - 2, 4, 4, LCD);        // shine
   }
 
   function renderStatus() {
@@ -869,11 +918,28 @@
 
   function renderDeath() {
     px(0, 0, W, H, INK);
-    text("R.I.P.", W / 2, 40, 26, "#9bb03f", "center");
-    text(`Passed from ${state.deathReason}`, W / 2, 84, 14, "#9bb03f", "center");
-    text(`Lived ${state.ageYears} years`, W / 2, 108, 14, "#9bb03f", "center");
-    text("Press any button to", W / 2, 146, 13, "#9bb03f", "center");
-    text("hatch a new egg", W / 2, 164, 13, "#9bb03f", "center");
+    const now = Date.now();
+    const float = Math.sin(now / 700) * 4;
+
+    // little angel drifting up (halo + body + wings)
+    const ax = W / 2, ay = 40 + float;
+    px(ax - 10, ay - 16, 20, 3, LCD);          // halo
+    px(ax - 7, ay - 8, 14, 14, LCD);           // head/body
+    px(ax - 4, ay - 4, 3, 3, INK);             // eye
+    px(ax + 2, ay - 4, 3, 3, INK);             // eye
+    px(ax - 18, ay - 2, 8, 6, LCD);            // left wing
+    px(ax + 10, ay - 2, 8, 6, LCD);            // right wing
+
+    // tombstone
+    const tx = W / 2, ty = 78;
+    px(tx - 32, ty, 64, 58, LCD);
+    px(tx - 28, ty - 6, 56, 10, LCD);          // rounded shoulders
+    px(tx - 22, ty - 12, 44, 8, LCD);
+    text("R.I.P.", tx, ty + 8, 19, INK, "center");
+    text(`${state.ageYears} yrs`, tx, ty + 34, 13, INK, "center");
+
+    text(`Passed from ${state.deathReason}`, W / 2, 156, 13, LCD, "center");
+    text("Press any button for a new egg", W / 2, 180, 12, LCD, "center");
   }
 
   function cap(s) {
