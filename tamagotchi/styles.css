@@ -34,7 +34,6 @@ body {
 }
 
 .device {
-  position: relative;
   width: min(94vw, 380px);
   background: radial-gradient(circle at 30% 20%, #a7d38c 0%, var(--shell) 45%, var(--shell-dark) 100%);
   border-radius: 46% 46% 44% 44% / 40% 40% 60% 60%;
