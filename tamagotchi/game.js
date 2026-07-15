@@ -1,0 +1,859 @@
+/* Tamagotchi — static, cache-backed virtual pet.
+ * Faithful to 2008-era (Connection / Version) mechanics:
+ * egg hatch, hunger & happy hearts, discipline, weight, poop, sickness,
+ * sleep by clock, attention calls, care mistakes, evolution, old age & death.
+ * All state persists in the browser cache (localStorage) and the pet ages in
+ * real time even while the tab is closed.
+ */
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "tamagotchi_v1";
+  const CACHE_NAME = "tamagotchi-state";
+
+  // ---- Time constants (real time, authentic ratios) --------------------
+  const MIN = 60 * 1000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  const CFG = {
+    hatchCareMs: 30 * 1000,     // egg hatches after a short while
+    hungerDecayMs: 30 * MIN,    // -1 hunger heart every 30 min
+    happyDecayMs: 30 * MIN,     // -1 happy heart every 30 min
+    disciplineDecayPerHour: 4,  // discipline slowly slips
+    poopMinMs: 60 * MIN,        // poop 1-3 h after eating
+    poopMaxMs: 180 * MIN,
+    sickFromPoopMs: 60 * MIN,   // poop left ~1h risks sickness
+    neglectDeathMs: 12 * HOUR,  // need at zero this long -> risk death
+    sickDeathMs: 24 * HOUR,     // untreated sickness this long -> death
+    // evolution timeline (time since birth)
+    babyMs: 1 * HOUR,
+    childMs: 1 * DAY,
+    teenMs: 3 * DAY,
+    adultMs: 6 * DAY,
+    ageYearMs: 1 * DAY,         // +1 "year" of age per real day
+    oldAgeMs: 12 * DAY,         // baseline lifespan; care extends it
+    // sleep window (local clock hours)
+    sleepStart: 20,
+    sleepEnd: 8,
+    callMinMs: 8 * MIN,         // attention calls
+    callMaxMs: 20 * MIN,
+  };
+
+  const STAGES = ["egg", "baby", "child", "teen", "adult", "senior"];
+
+  // ---- State -----------------------------------------------------------
+  function freshState(now) {
+    return {
+      v: 1,
+      bornAt: now,
+      lastUpdate: now,
+      stage: "egg",
+      hatched: false,
+      careMs: 0,            // attention accumulated while egg
+      hunger: 4,            // 0..4 hearts (full float)
+      happy: 4,             // 0..4 hearts
+      discipline: 0,        // 0..100
+      weight: 5,
+      poop: 0,
+      poopDueAt: now + rand(CFG.poopMinMs, CFG.poopMaxMs),
+      sick: false,
+      sickSince: 0,
+      lightOn: true,
+      hungerZeroSince: 0,
+      happyZeroSince: 0,
+      poopSince: 0,
+      careMistakes: 0,
+      goodCare: 0,
+      call: null,           // 'need' | 'discipline' | null
+      nextCallAt: now + rand(CFG.callMinMs, CFG.callMaxMs),
+      alive: true,
+      deathReason: null,
+      ageYears: 0,
+    };
+  }
+
+  function rand(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  let state = load() || freshState(Date.now());
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || s.v !== 1) return null;
+      return s;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function save() {
+    try {
+      const raw = JSON.stringify(state);
+      localStorage.setItem(STORAGE_KEY, raw);
+      // Mirror into the Cache API as a second cache-backed copy.
+      if (window.caches) {
+        caches.open(CACHE_NAME).then((c) =>
+          c.put("/tamagotchi/state.json", new Response(raw, {
+            headers: { "Content-Type": "application/json" },
+          }))
+        ).catch(() => {});
+      }
+    } catch (e) {
+      /* storage full or unavailable */
+    }
+  }
+
+  // ---- Simulation ------------------------------------------------------
+  function isSleepHour(date) {
+    const h = date.getHours();
+    if (CFG.sleepStart > CFG.sleepEnd) {
+      return h >= CFG.sleepStart || h < CFG.sleepEnd;
+    }
+    return h >= CFG.sleepStart && h < CFG.sleepEnd;
+  }
+
+  function isSleeping() {
+    return state.hatched && state.alive && isSleepHour(new Date());
+  }
+
+  function simulate(now) {
+    if (!state.alive) {
+      state.lastUpdate = now;
+      return;
+    }
+    let elapsed = now - state.lastUpdate;
+    if (elapsed < 0) elapsed = 0;
+    if (elapsed > 30 * DAY) elapsed = 30 * DAY; // clamp absurd gaps
+
+    // Egg hatching
+    if (!state.hatched) {
+      state.careMs += elapsed;
+      if (state.careMs >= CFG.hatchCareMs) {
+        state.hatched = true;
+        state.stage = "baby";
+        state.call = null;
+      }
+      state.lastUpdate = now;
+      return;
+    }
+
+    const sleeping = isSleepHour(new Date(now));
+
+    // Stats do not decay while asleep (light should be off).
+    if (!sleeping) {
+      state.hunger = clamp(state.hunger - elapsed / CFG.hungerDecayMs, 0, 4);
+      state.happy = clamp(state.happy - elapsed / CFG.happyDecayMs, 0, 4);
+      state.discipline = clamp(
+        state.discipline - (CFG.disciplineDecayPerHour * elapsed) / HOUR,
+        0,
+        100
+      );
+    } else if (state.lightOn) {
+      // Light left on at bedtime is a care mistake.
+      state.careMistakes += 1;
+    }
+
+    // Track empty-need neglect windows
+    trackZero(now, "hunger", "hungerZeroSince");
+    trackZero(now, "happy", "happyZeroSince");
+
+    // Poop
+    if (now >= state.poopDueAt) {
+      state.poop += 1;
+      if (state.poopSince === 0) state.poopSince = now;
+      state.poopDueAt = now + rand(CFG.poopMinMs, CFG.poopMaxMs);
+    }
+
+    // Sickness triggers
+    if (!state.sick) {
+      const poopLong = state.poop > 0 && state.poopSince &&
+        now - state.poopSince > CFG.sickFromPoopMs;
+      const starving = state.hungerZeroSince &&
+        now - state.hungerZeroSince > 2 * HOUR;
+      if (poopLong || starving || (!sleeping && Math.random() < elapsed / (12 * HOUR))) {
+        state.sick = true;
+        state.sickSince = now;
+      }
+    }
+
+    // Attention calls (only when awake)
+    if (!sleeping && !state.call && now >= state.nextCallAt) {
+      if (Math.floor(state.hunger) === 0 || Math.floor(state.happy) === 0 || state.sick) {
+        state.call = "need";
+      } else {
+        state.call = "discipline"; // "bad behaviour" call
+      }
+      state.nextCallAt = now + rand(CFG.callMinMs, CFG.callMaxMs);
+    }
+
+    // Age in years
+    state.ageYears = Math.floor((now - state.bornAt) / CFG.ageYearMs);
+
+    // Evolution
+    evolve(now);
+
+    // Death checks
+    checkDeath(now);
+
+    state.lastUpdate = now;
+  }
+
+  function trackZero(now, statKey, sinceKey) {
+    if (Math.floor(state[statKey]) === 0) {
+      if (state[sinceKey] === 0) state[sinceKey] = now;
+    } else {
+      state[sinceKey] = 0;
+    }
+  }
+
+  function evolve(now) {
+    const age = now - state.bornAt;
+    let target = "baby";
+    if (age >= CFG.adultMs) target = "adult";
+    else if (age >= CFG.teenMs) target = "teen";
+    else if (age >= CFG.childMs) target = "child";
+    else if (age >= CFG.babyMs) target = "baby";
+    // Senior once past old-age threshold
+    if (age >= CFG.oldAgeMs * 0.75) target = "senior";
+    if (STAGES.indexOf(target) > STAGES.indexOf(state.stage)) {
+      state.stage = target;
+    }
+  }
+
+  function checkDeath(now) {
+    let reason = null;
+    if (state.sick && state.sickSince && now - state.sickSince > CFG.sickDeathMs) {
+      reason = "illness";
+    } else if (
+      state.hungerZeroSince && now - state.hungerZeroSince > CFG.neglectDeathMs &&
+      state.happyZeroSince && now - state.happyZeroSince > CFG.neglectDeathMs
+    ) {
+      reason = "neglect";
+    } else {
+      // Old age — lifespan extended by good care, shortened by mistakes.
+      const lifespan = CFG.oldAgeMs +
+        state.goodCare * 20 * MIN -
+        state.careMistakes * 30 * MIN;
+      if (now - state.bornAt > lifespan) reason = "old age";
+    }
+    if (reason) {
+      state.alive = false;
+      state.deathReason = reason;
+      state.call = null;
+    }
+  }
+
+  function clamp(n, lo, hi) {
+    return n < lo ? lo : n > hi ? hi : n;
+  }
+
+  // ---- Care actions ----------------------------------------------------
+  function feedMeal() {
+    if (!careable()) return msg("Zzz...");
+    if (Math.floor(state.hunger) >= 4) return msg("Too full!");
+    state.hunger = clamp(state.hunger + 1, 0, 4);
+    state.weight += 1;
+    state.hungerZeroSince = 0;
+    if (state.poopSince === 0 && state.poop === 0) {
+      state.poopDueAt = Date.now() + rand(CFG.poopMinMs, CFG.poopMaxMs);
+    }
+    goodCare();
+    animate("eat");
+    msg("Yum, a meal!");
+  }
+
+  function feedSnack() {
+    if (!careable()) return msg("Zzz...");
+    state.happy = clamp(state.happy + 1, 0, 4);
+    state.weight += 2; // snacks add more weight, like the real toy
+    state.happyZeroSince = 0;
+    animate("eat");
+    msg("Sweet snack!");
+  }
+
+  function toggleLight() {
+    state.lightOn = !state.lightOn;
+    save();
+    render();
+  }
+
+  function giveMedicine() {
+    if (!state.sick) return msg("Not sick.");
+    state.sick = false;
+    state.sickSince = 0;
+    goodCare();
+    animate("heal");
+    msg("All better!");
+  }
+
+  function cleanPoop() {
+    if (state.poop <= 0) return msg("It's clean.");
+    state.poop = 0;
+    state.poopSince = 0;
+    goodCare();
+    msg("Flushed!");
+  }
+
+  function scold() {
+    if (!careable()) return msg("Zzz...");
+    if (state.call === "discipline") {
+      state.discipline = clamp(state.discipline + 15, 0, 100);
+      state.call = null;
+      goodCare();
+      animate("angry");
+      msg("Behave!");
+    } else {
+      // Scolding for no reason lowers happiness — like the real toy.
+      state.happy = clamp(state.happy - 1, 0, 4);
+      msg("Wasn't naughty!");
+    }
+  }
+
+  function acknowledgeCall() {
+    if (!state.call) return msg("Nothing.");
+    if (state.call === "discipline") {
+      scold();
+    } else {
+      state.call = null;
+      render();
+    }
+  }
+
+  function careable() {
+    return state.hatched && state.alive && !isSleeping();
+  }
+
+  function goodCare() {
+    state.goodCare += 1;
+  }
+
+  function reset() {
+    state = freshState(Date.now());
+    save();
+    ui.mode = "main";
+    ui.cursor = 0;
+    render();
+  }
+
+  // ---- Mini-game (direction guess, classic Tamagotchi) -----------------
+  const game = { active: false, round: 0, wins: 0, target: 0, guess: null, revealAt: 0 };
+
+  function startGame() {
+    if (!careable()) return msg("Zzz...");
+    if (Math.floor(state.happy) >= 4) { /* still allowed, keeps them fit */ }
+    game.active = true;
+    game.round = 0;
+    game.wins = 0;
+    game.guess = null;
+    nextRound();
+    ui.mode = "game";
+    render();
+  }
+
+  function nextRound() {
+    game.round += 1;
+    game.target = Math.random() < 0.5 ? 0 : 1; // 0 left, 1 right
+    game.guess = null;
+    game.revealAt = 0;
+  }
+
+  function playGuess(dir) {
+    if (game.guess !== null) return;
+    game.guess = dir;
+    if (dir === game.target) game.wins += 1;
+    game.revealAt = Date.now() + 900;
+    render();
+    setTimeout(() => {
+      if (game.round >= 5) {
+        endGame();
+      } else {
+        nextRound();
+        render();
+      }
+    }, 950);
+  }
+
+  function endGame() {
+    game.active = false;
+    ui.mode = "main";
+    if (game.wins >= 3) {
+      state.happy = clamp(state.happy + 1, 0, 4);
+      state.weight = Math.max(1, state.weight - 1);
+      state.happyZeroSince = 0;
+      goodCare();
+      msg("You won! +1 happy");
+    } else {
+      msg("You lost...");
+    }
+  }
+
+  // ---- UI / input ------------------------------------------------------
+  const ICONS = [
+    "food", "light", "play", "medicine",
+    "bathroom", "status", "discipline", "attention",
+  ];
+
+  const ui = {
+    mode: "main",     // main | feed | game | status | message
+    cursor: 0,        // selected icon index
+    feedCursor: 0,    // 0 meal, 1 snack
+    statusPage: 0,
+    message: "",
+    messageUntil: 0,
+    anim: null,
+    animUntil: 0,
+    blink: 0,
+  };
+
+  function msg(text) {
+    ui.message = text;
+    ui.messageUntil = Date.now() + 1600;
+    save();
+    render();
+  }
+
+  function animate(kind) {
+    ui.anim = kind;
+    ui.animUntil = Date.now() + 1200;
+  }
+
+  function activateIcon(name) {
+    if (!state.hatched) {
+      // Any button caring for the egg is fine; just show it.
+      return render();
+    }
+    switch (name) {
+      case "food":
+        ui.mode = "feed";
+        ui.feedCursor = 0;
+        break;
+      case "light":
+        toggleLight();
+        return;
+      case "play":
+        startGame();
+        return;
+      case "medicine":
+        giveMedicine();
+        break;
+      case "bathroom":
+        cleanPoop();
+        break;
+      case "status":
+        ui.mode = "status";
+        ui.statusPage = 0;
+        break;
+      case "discipline":
+        scold();
+        break;
+      case "attention":
+        acknowledgeCall();
+        break;
+    }
+    render();
+  }
+
+  // Button A: move / select
+  function pressA() {
+    if (!state.alive) return;
+    if (ui.mode === "main") {
+      ui.cursor = (ui.cursor + 1) % ICONS.length;
+    } else if (ui.mode === "feed") {
+      ui.feedCursor = (ui.feedCursor + 1) % 2;
+    } else if (ui.mode === "status") {
+      ui.statusPage = (ui.statusPage + 1) % 3;
+    } else if (ui.mode === "game") {
+      playGuess(0); // guess left
+    }
+    render();
+  }
+
+  // Button B: confirm / enter
+  function pressB() {
+    if (!state.alive) return;
+    if (ui.mode === "main") {
+      activateIcon(ICONS[ui.cursor]);
+    } else if (ui.mode === "feed") {
+      ui.feedCursor === 0 ? feedMeal() : feedSnack();
+    } else if (ui.mode === "status") {
+      ui.mode = "main";
+      render();
+    } else if (ui.mode === "game") {
+      playGuess(1); // guess right
+    }
+  }
+
+  // Button C: cancel / back
+  function pressC() {
+    if (!state.alive) return;
+    if (ui.mode === "game") {
+      game.active = false;
+    }
+    ui.mode = "main";
+    render();
+  }
+
+  // ---- Rendering (LCD canvas) -----------------------------------------
+  const canvas = document.getElementById("lcd");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const INK = "#38400f";
+  const DIM = "rgba(56,64,15,0.35)";
+
+  function px(x, y, w, h, color) {
+    ctx.fillStyle = color || INK;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+
+  function text(str, x, y, size, color, align) {
+    ctx.fillStyle = color || INK;
+    ctx.font = `700 ${size}px "Courier New", monospace`;
+    ctx.textAlign = align || "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(str, x, y);
+    ctx.textAlign = "left";
+  }
+
+  function clearLcd() {
+    ctx.clearRect(0, 0, W, H);
+  }
+
+  function drawHearts(x, y, value, label) {
+    text(label, x, y, 13, INK);
+    const full = Math.floor(clamp(value, 0, 4));
+    for (let i = 0; i < 4; i++) {
+      drawHeart(x + 52 + i * 20, y - 1, i < full);
+    }
+  }
+
+  function drawHeart(x, y, filled) {
+    ctx.fillStyle = filled ? INK : DIM;
+    ctx.beginPath();
+    const s = 14;
+    ctx.moveTo(x + s / 2, y + s);
+    ctx.bezierCurveTo(x - s * 0.2, y + s * 0.55, x + s * 0.1, y, x + s / 2, y + s * 0.32);
+    ctx.bezierCurveTo(x + s * 0.9, y, x + s * 1.2, y + s * 0.55, x + s / 2, y + s);
+    ctx.fill();
+  }
+
+  // Simple pixel creature per stage, with a bob animation.
+  function drawCreature(cx, cy, bob) {
+    const s = 6; // pixel size
+    const b = bob ? -s : 0;
+    const put = (gx, gy, col) => px(cx + gx * s, cy + gy * s + b, s, s, col);
+
+    if (isSleeping()) {
+      // Sleeping blob + Z's
+      for (let gx = -3; gx <= 3; gx++) put(gx, 2, INK);
+      for (let gx = -2; gx <= 2; gx++) put(gx, 1, INK);
+      put(-1, 0, INK); put(1, 0, INK);
+      text("z", cx + 30, cy - 22 + b, 14, INK);
+      text("Z", cx + 42, cy - 34 + b, 18, INK);
+      return;
+    }
+
+    const stage = state.stage;
+    if (stage === "egg") {
+      drawEgg(cx, cy, bob);
+      return;
+    }
+
+    // shared body
+    const body = [
+      [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
+      [-3, 1], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [3, 1],
+      [-3, 2], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2], [3, 2],
+      [-2, 3], [-1, 3], [0, 3], [1, 3], [2, 3],
+    ];
+    let scale = 1;
+    if (stage === "baby") scale = 0.7;
+    if (stage === "teen") scale = 1.1;
+    if (stage === "adult" || stage === "senior") scale = 1.25;
+
+    ctx.save();
+    ctx.translate(cx, cy + b);
+    ctx.scale(scale, scale);
+    body.forEach(([gx, gy]) => px(gx * s, gy * s, s, s, INK));
+    // eyes
+    px(-2 * s, 0, s, s, "#9bb03f");
+    px(1 * s, 0, s, s, "#9bb03f");
+    if (stage === "senior") {
+      // little frown / whiskers
+      px(-3 * s, 1 * s, s, s, "#9bb03f");
+      px(3 * s, 1 * s, s, s, "#9bb03f");
+    }
+    if (state.sick) text("!", -s, -3.4 * s, 20, INK, "center");
+    ctx.restore();
+
+    // Ears/antenna for older stages
+    if (stage === "teen" || stage === "adult" || stage === "senior") {
+      px(cx - 3 * s, cy - 2 * s + b, s, s, INK);
+      px(cx + 2 * s, cy - 2 * s + b, s, s, INK);
+    }
+  }
+
+  function drawEgg(cx, cy, wobble) {
+    const s = 7;
+    const w = wobble ? 3 : -3;
+    ctx.save();
+    ctx.translate(cx + w, cy);
+    const egg = [
+      [-1, -2], [0, -2],
+      [-2, -1], [-1, -1], [0, -1], [1, -1],
+      [-2, 0], [-1, 0], [0, 0], [1, 0],
+      [-3, 1], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
+      [-3, 2], [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2],
+      [-2, 3], [-1, 3], [0, 3], [1, 3],
+    ];
+    egg.forEach(([gx, gy]) => px(gx * s, gy * s, s, s, INK));
+    // zig-zag detail
+    px(-1 * s, 1 * s, s, s, "#9bb03f");
+    px(1 * s, 2 * s, s, s, "#9bb03f");
+    ctx.restore();
+  }
+
+  function drawPoop(x, y) {
+    const s = 5;
+    px(x - 2 * s, y + 2 * s, 4 * s, s);
+    px(x - s, y + s, 2 * s, s);
+    px(x - 0.5 * s, y, s, s);
+  }
+
+  function render() {
+    clearLcd();
+    const now = Date.now();
+    const bob = Math.floor(now / 500) % 2 === 0;
+
+    if (!state.alive) return renderDeath();
+
+    if (ui.mode === "feed") return renderFeed();
+    if (ui.mode === "status") return renderStatus();
+    if (ui.mode === "game") return renderGame(bob);
+
+    // MAIN
+    // top status glyphs
+    if (state.sick) text("SICK", W - 8, 6, 12, INK, "right");
+    if (isSleeping()) text("SLEEP", W - 8, 6, 12, INK, "right");
+    if (state.call) {
+      // blinking call indicator
+      if (Math.floor(now / 400) % 2 === 0) text("!", 10, 6, 22, INK);
+    }
+
+    // creature
+    const cx = W / 2;
+    const cy = H / 2 - 14;
+    drawCreature(cx, cy, bob);
+
+    // poop
+    for (let i = 0; i < Math.min(state.poop, 3); i++) {
+      drawPoop(40 + i * 34, H - 44);
+    }
+
+    // eating / anim overlays
+    if (ui.anim && now < ui.animUntil) {
+      if (ui.anim === "eat") text("munch", cx, cy + 50, 13, INK, "center");
+      if (ui.anim === "heal") text("+", cx + 44, cy - 20, 22, INK, "center");
+      if (ui.anim === "angry") text("grr", cx, cy + 50, 13, INK, "center");
+    } else {
+      ui.anim = null;
+    }
+
+    // transient message
+    if (ui.message && now < ui.messageUntil) {
+      px(0, H - 26, W, 26, INK);
+      text(ui.message, W / 2, H - 22, 14, "#9bb03f", "center");
+    } else if (!state.hatched) {
+      px(0, H - 26, W, 26, INK);
+      text("An egg! Wait for it to hatch...", W / 2, H - 22, 12, "#9bb03f", "center");
+    }
+  }
+
+  function renderFeed() {
+    text("FEED", W / 2, 12, 18, INK, "center");
+    const opts = ["Meal (+hunger)", "Snack (+happy)"];
+    opts.forEach((o, i) => {
+      const y = 70 + i * 40;
+      if (i === ui.feedCursor) {
+        px(30, y - 4, W - 60, 30, DIM);
+        text(">", 40, y, 18, INK);
+      }
+      text(o, 64, y, 18, INK);
+    });
+    text("A: switch   B: choose   C: back", W / 2, H - 22, 12, INK, "center");
+  }
+
+  function renderStatus() {
+    const pages = [statusVitals, statusBody, statusCare];
+    pages[ui.statusPage]();
+    text(`STATUS ${ui.statusPage + 1}/3   A:next  B/C:back`, W / 2, H - 20, 11, INK, "center");
+  }
+
+  function statusVitals() {
+    text("VITALS", W / 2, 8, 16, INK, "center");
+    drawHearts(24, 46, state.hunger, "Hun");
+    drawHearts(24, 76, state.happy, "Hap");
+    text("Discipline", 24, 108, 13, INK);
+    px(120, 110, 120, 12, DIM);
+    px(120, 110, 120 * (state.discipline / 100), 12, INK);
+  }
+
+  function statusBody() {
+    text("BODY", W / 2, 8, 16, INK, "center");
+    text(`Stage:  ${cap(state.stage)}`, 24, 46, 15, INK);
+    text(`Age:    ${state.ageYears} yr`, 24, 74, 15, INK);
+    text(`Weight: ${Math.round(state.weight)} lb`, 24, 102, 15, INK);
+    text(state.sick ? "Health: SICK" : "Health: OK", 24, 130, 15, INK);
+  }
+
+  function statusCare() {
+    text("CARE LOG", W / 2, 8, 16, INK, "center");
+    text(`Good care: ${state.goodCare}`, 24, 46, 15, INK);
+    text(`Mistakes:  ${state.careMistakes}`, 24, 74, 15, INK);
+    text(`Poop:      ${state.poop}`, 24, 102, 15, INK);
+    text(`Light:     ${state.lightOn ? "ON" : "OFF"}`, 24, 130, 15, INK);
+  }
+
+  function renderGame(bob) {
+    text("GUESS THE WAY!", W / 2, 8, 16, INK, "center");
+    text(`Round ${game.round}/5   Wins ${game.wins}`, W / 2, 32, 13, INK, "center");
+
+    const cx = W / 2, cy = H / 2 + 4;
+    const revealed = game.guess !== null;
+    // Pet turns toward target once revealed, else faces center.
+    let dir = 0;
+    if (revealed) dir = game.target === 0 ? -1 : 1;
+    drawGamePet(cx, cy, dir, bob);
+
+    if (revealed) {
+      const win = game.guess === game.target;
+      text(win ? "MATCH!" : "MISS!", W / 2, H - 46, 16, INK, "center");
+    }
+    text("A: left    B: right    C: quit", W / 2, H - 22, 12, INK, "center");
+  }
+
+  function drawGamePet(cx, cy, dir, bob) {
+    const s = 7;
+    const b = bob ? -s : 0;
+    const body = [
+      [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
+      [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
+      [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2],
+    ];
+    body.forEach(([gx, gy]) => px(cx + gx * s, cy + gy * s + b, s, s, INK));
+    // eye position shifts with facing direction
+    const ex = dir === 0 ? 0 : dir < 0 ? -1 : 1;
+    px(cx + ex * s, cy + 0 * s + b, s, s, "#9bb03f");
+    // arrow of the guess/turn
+    if (dir < 0) text("<", cx - 5 * s, cy + b, 22, INK, "center");
+    if (dir > 0) text(">", cx + 5 * s, cy + b, 22, INK, "center");
+  }
+
+  function renderDeath() {
+    px(0, 0, W, H, INK);
+    text("R.I.P.", W / 2, 40, 26, "#9bb03f", "center");
+    text(`Passed from ${state.deathReason}`, W / 2, 84, 14, "#9bb03f", "center");
+    text(`Lived ${state.ageYears} years`, W / 2, 108, 14, "#9bb03f", "center");
+    text("Press any button to", W / 2, 146, 13, "#9bb03f", "center");
+    text("hatch a new egg", W / 2, 164, 13, "#9bb03f", "center");
+  }
+
+  function cap(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // ---- Icon highlight in the DOM to match cursor -----------------------
+  const iconEls = Array.from(document.querySelectorAll(".icon"));
+  const iconIndex = {};
+  iconEls.forEach((el) => (iconIndex[el.dataset.menu] = el));
+
+  function syncIcons() {
+    iconEls.forEach((el) => el.classList.remove("selected"));
+    if (state.alive && ui.mode === "main") {
+      const el = iconIndex[ICONS[ui.cursor]];
+      if (el) el.classList.add("selected");
+    }
+  }
+
+  const _render = render;
+  render = function () {
+    _render();
+    syncIcons();
+  };
+
+  // ---- Wire up controls ------------------------------------------------
+  function tapHandler(fn) {
+    return (e) => {
+      e.preventDefault();
+      if (!state.alive) {
+        reset();
+        return;
+      }
+      fn();
+    };
+  }
+
+  const bA = document.getElementById("btnA");
+  const bB = document.getElementById("btnB");
+  const bC = document.getElementById("btnC");
+  bA.addEventListener("click", tapHandler(pressA));
+  bB.addEventListener("click", tapHandler(pressB));
+  bC.addEventListener("click", tapHandler(pressC));
+
+  // Clicking an on-screen icon jumps the cursor there and activates it.
+  iconEls.forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!state.alive) return reset();
+      const name = el.dataset.menu;
+      const idx = ICONS.indexOf(name);
+      if (idx >= 0) ui.cursor = idx;
+      ui.mode = "main";
+      activateIcon(name);
+    });
+  });
+
+  // Keyboard: A/left, B/right/enter, C/esc, plus arrows.
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (!state.alive) {
+      reset();
+      return;
+    }
+    if (k === "a" || k === "arrowleft") { e.preventDefault(); pressA(); }
+    else if (k === "b" || k === "arrowright" || k === "enter") { e.preventDefault(); pressB(); }
+    else if (k === "c" || k === "escape") { e.preventDefault(); pressC(); }
+  });
+
+  // ---- Main loop -------------------------------------------------------
+  let lastSave = 0;
+  function tick() {
+    const now = Date.now();
+    simulate(now);
+    render();
+    if (now - lastSave > 5000) {
+      save();
+      lastSave = now;
+    }
+  }
+  setInterval(tick, 500);
+
+  // Persist promptly when the tab is hidden or closed.
+  document.addEventListener("visibilitychange", () => {
+    simulate(Date.now());
+    save();
+  });
+  window.addEventListener("pagehide", () => {
+    simulate(Date.now());
+    save();
+  });
+
+  // First paint
+  simulate(Date.now());
+  render();
+})();

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="theme-color" content="#7a9a5a" />
+    <title>Tamagotchi</title>
+    <link rel="stylesheet" href="/tamagotchi/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <div class="device">
+        <div class="brand">Tamagotchi</div>
+
+        <div class="screen-frame">
+          <div class="icon-row" id="iconRowTop">
+            <div class="icon" data-menu="food"><span>🍚</span><em>Food</em></div>
+            <div class="icon" data-menu="light"><span>💡</span><em>Light</em></div>
+            <div class="icon" data-menu="play"><span>🎮</span><em>Play</em></div>
+            <div class="icon" data-menu="medicine"><span>💉</span><em>Med</em></div>
+          </div>
+
+          <div class="lcd-wrap">
+            <canvas id="lcd" width="320" height="200" aria-label="Tamagotchi screen"></canvas>
+          </div>
+
+          <div class="icon-row" id="iconRowBottom">
+            <div class="icon" data-menu="bathroom"><span>🧻</span><em>Clean</em></div>
+            <div class="icon" data-menu="status"><span>📊</span><em>Status</em></div>
+            <div class="icon" data-menu="discipline"><span>✋</span><em>Scold</em></div>
+            <div class="icon" data-menu="attention"><span>🔔</span><em>Call</em></div>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="btnA" class="dev-btn" type="button">A<small>Select</small></button>
+          <button id="btnB" class="dev-btn" type="button">B<small>Enter</small></button>
+          <button id="btnC" class="dev-btn" type="button">C<small>Cancel</small></button>
+        </div>
+
+        <p class="hint">A = move cursor · B = confirm · C = cancel</p>
+      </div>
+    </main>
+
+    <script src="/tamagotchi/game.js"></script>
+  </body>
+</html>

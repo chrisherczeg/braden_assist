@@ -1,0 +1,171 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --shell: #7fb069;
+  --shell-dark: #5d8a4a;
+  --lcd: #9bb03f;
+  --lcd-dark: #38400f;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: radial-gradient(circle at 50% 30%, #2b2f36 0%, #16181c 100%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+}
+
+.device {
+  width: min(94vw, 380px);
+  background: radial-gradient(circle at 30% 20%, #a7d38c 0%, var(--shell) 45%, var(--shell-dark) 100%);
+  border-radius: 46% 46% 44% 44% / 40% 40% 60% 60%;
+  padding: 26px 22px 30px;
+  box-shadow:
+    inset 0 4px 12px rgba(255, 255, 255, 0.45),
+    inset 0 -10px 22px rgba(0, 0, 0, 0.28),
+    0 24px 44px rgba(0, 0, 0, 0.5);
+}
+
+.brand {
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.screen-frame {
+  background: #2c2f24;
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.7);
+}
+
+.icon-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px 2px;
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  border-radius: 8px;
+  opacity: 0.55;
+  transition: opacity 0.15s, background 0.15s, transform 0.1s;
+  cursor: pointer;
+}
+
+.icon span {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.icon em {
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: #cfe0a0;
+  text-transform: uppercase;
+}
+
+.icon.selected {
+  opacity: 1;
+  background: rgba(155, 176, 63, 0.28);
+  transform: scale(1.06);
+}
+
+.icon.selected em {
+  color: #eaf5c8;
+}
+
+.lcd-wrap {
+  background: var(--lcd);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: inset 0 0 0 2px #3a4416, inset 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+#lcd {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border-radius: 4px;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 20px;
+}
+
+.dev-btn {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  border: none;
+  font-size: 20px;
+  font-weight: 800;
+  color: #3a4416;
+  background: radial-gradient(circle at 35% 30%, #fdfdf5 0%, #d9dcc4 55%, #b6ba9c 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.8),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.25),
+    0 5px 10px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.dev-btn small {
+  font-size: 8px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.dev-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.hint {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+  margin: 14px 0 0;
+  letter-spacing: 0.3px;
+}
