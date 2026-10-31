@@ -1,7 +1,7 @@
 {
   "name": "Purdue Ball — Boilermaker Sports Tracker",
   "short_name": "Purdue Ball",
-  "description": "Live scores, stats, and schedules for Purdue Boilermakers basketball.",
+  "description": "Live scores and schedules for Purdue Boilermakers men's and women's basketball and football.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#101010",

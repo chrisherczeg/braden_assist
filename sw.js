@@ -1,4 +1,4 @@
-const CACHE_NAME = "purdue-ball-v3";
+const CACHE_NAME = "purdue-ball-v4";
 const PRECACHE = [
   "/",
   "/index.html",

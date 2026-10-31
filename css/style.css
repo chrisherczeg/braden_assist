@@ -42,6 +42,44 @@ header h1 span {
   color: var(--white);
 }
 
+header h1 #sport-title {
+  color: var(--gold);
+}
+
+.sport-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding: 0 1rem;
+  max-width: 100%;
+}
+
+.sport-tab {
+  padding: 0.65rem 1.25rem;
+  border: 1.5px solid var(--gold-dim);
+  border-radius: 8px;
+  background: var(--dark);
+  color: var(--gold);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.sport-tab[aria-selected="true"],
+.sport-tab:hover {
+  background: var(--gold);
+  color: var(--black);
+}
+
+.sport-tab:focus-visible {
+  outline: 2px solid var(--white);
+  outline-offset: 3px;
+}
+
 .container {
   flex: 1;
   display: flex;
@@ -63,79 +101,6 @@ header h1 span {
   width: 100%;
   max-width: 520px;
   box-shadow: 0 0 40px rgba(207, 185, 145, 0.08);
-}
-
-.player-name {
-  font-family: 'Oswald', sans-serif;
-  font-size: 2.4rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.15rem;
-}
-
-.player-info {
-  font-size: 0.95rem;
-  color: var(--gold-dim);
-  margin-bottom: 2rem;
-  letter-spacing: 0.05em;
-}
-
-.stat-label {
-  font-family: 'Oswald', sans-serif;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--gold);
-  margin-bottom: 0.5rem;
-}
-
-.stat-value {
-  font-family: 'Oswald', sans-serif;
-  font-size: 6rem;
-  font-weight: 700;
-  color: var(--gold);
-  line-height: 1;
-  margin-bottom: 0.25rem;
-  transition: opacity 0.3s;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.15em;
-}
-
-.stat-value .divider {
-  font-size: 3rem;
-  color: #555;
-  font-weight: 400;
-}
-
-.stat-value .record {
-  font-size: 2.8rem;
-  color: #888;
-  font-weight: 400;
-}
-
-.stat-value.loading {
-  opacity: 0.3;
-}
-
-.record-holder {
-  font-size: 0.75rem;
-  color: #666;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  margin-top: 0.6rem;
-}
-
-.breakdown {
-  font-size: 0.85rem;
-  color: #888;
-  margin-top: 0.75rem;
-}
-
-.breakdown span {
-  color: #bbb;
 }
 
 .status-bar {
@@ -532,11 +497,8 @@ footer a:hover {
 }
 
 @media (max-width: 480px) {
+  header { padding: 1.5rem 3.5rem 1.5rem 1rem; }
   .card { padding: 2rem 1.5rem; }
-  .player-name { font-size: 1.8rem; }
-  .stat-value { font-size: 4.5rem; }
-  .stat-value .divider { font-size: 2rem; }
-  .stat-value .record { font-size: 1.8rem; }
   .matchup-team img { width: 44px; height: 44px; }
 }
 
@@ -574,38 +536,4 @@ header {
   background: var(--gold);
   color: var(--black);
   border-color: var(--gold);
-}
-
-/* ── Share Button ── */
-.share-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 1.2rem;
-  padding: 0.5rem 1.2rem;
-  background: none;
-  border: 1.5px solid var(--gold-dim);
-  border-radius: 8px;
-  color: var(--gold-dim);
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
-}
-
-.share-btn:hover {
-  background: var(--gold);
-  color: var(--black);
-  border-color: var(--gold);
-  transform: scale(1.05);
-}
-
-.share-btn:active {
-  transform: scale(0.97);
-}
-
-.share-btn svg {
-  flex-shrink: 0;
 }

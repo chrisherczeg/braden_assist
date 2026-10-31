@@ -1,14 +1,22 @@
-const PLAYER_ID = "5105854";
 const PURDUE_TEAM_ID = "2509";
-const BASE = "https://site.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/athletes";
-const ESPN_V2 = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
-const SCOREBOARD_URL = ESPN_V2 + "/scoreboard";
-const SUMMARY_URL = ESPN_V2 + "/summary";
+const SPORTS = {
+  basketball: {
+    label: "Men's Basketball",
+    api: "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball"
+  },
+  football: {
+    label: "Football",
+    api: "https://site.api.espn.com/apis/site/v2/sports/football/college-football"
+  },
+  "womens-basketball": {
+    label: "Women's Basketball",
+    api: "https://site.api.espn.com/apis/site/v2/sports/basketball/womens-college-basketball"
+  }
+};
 const REFRESH_MS = 45_000;
-const RECORD = 1076;
+let activeSport = "basketball";
+let refreshVersion = 0;
 
-const elCount = document.getElementById("assist-count");
-const elBreakdown = document.getElementById("breakdown");
 const elPulse = document.getElementById("pulse");
 const elStatus = document.getElementById("status-text");
 const elProgress = document.getElementById("progress-fill");
@@ -18,118 +26,6 @@ async function espnGet(url) {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`ESPN returned ${resp.status}`);
   return resp.json();
-}
-
-async function getCareerAssists() {
-  // 1) Per-season totals from /stats
-  const stats = await espnGet(`${BASE}/${PLAYER_ID}/stats`);
-  let priorAst = 0;
-  let currentSeasonName = "";
-
-  for (const cat of (stats.categories || [])) {
-    if (!(cat.displayName || "").includes("Total")) continue;
-    const labels = cat.labels || [];
-    const astIdx = labels.indexOf("AST");
-    if (astIdx === -1) continue;
-
-    const seasons = cat.statistics || [];
-    if (seasons.length) {
-      currentSeasonName = (seasons[seasons.length - 1].season || {}).displayName || "";
-    }
-    // Sum all prior seasons (everything except the last)
-    for (const entry of seasons.slice(0, -1)) {
-      const val = parseInt(entry.stats?.[astIdx], 10);
-      if (!isNaN(val)) priorAst += val;
-    }
-    break;
-  }
-
-  // 2) Current season assists from gamelog (real-time)
-  const gamelog = await espnGet(`${BASE}/${PLAYER_ID}/gamelog`);
-  const glLabels = gamelog.labels || [];
-  const glAstIdx = glLabels.indexOf("AST");
-
-  let currentAst = 0;
-  if (glAstIdx !== -1) {
-    for (const st of (gamelog.seasonTypes || [])) {
-      for (const cat of (st.categories || [])) {
-        for (const event of (cat.events || [])) {
-          const row = event.stats || [];
-          if (glAstIdx < row.length) {
-            const val = parseInt(row[glAstIdx], 10);
-            if (!isNaN(val)) currentAst += val;
-          }
-        }
-      }
-    }
-  }
-
-  return { total: priorAst + currentAst, priorAst, currentAst, currentSeasonName };
-}
-
-async function getLiveGameAssists() {
-  try {
-    const scoreboard = await espnGet(SCOREBOARD_URL);
-    for (const event of (scoreboard.events || [])) {
-      const st = (event.status || {}).type || {};
-      if (st.state !== "in") continue;
-      for (const comp of (event.competitions || [])) {
-        for (const team of (comp.competitors || [])) {
-          if ((team.team || {}).id === PURDUE_TEAM_ID || String((team.team || {}).id) === PURDUE_TEAM_ID) {
-            const summary = await espnGet(`${SUMMARY_URL}?event=${event.id}`);
-            for (const bp of ((summary.boxscore || {}).players || [])) {
-              if (String((bp.team || {}).id) !== PURDUE_TEAM_ID) continue;
-              for (const statSet of (bp.statistics || [])) {
-                const labels = statSet.labels || [];
-                const astIdx = labels.indexOf("AST");
-                if (astIdx === -1) continue;
-                for (const athlete of (statSet.athletes || [])) {
-                  if (String((athlete.athlete || {}).id) === PLAYER_ID) {
-                    const val = parseInt((athlete.stats || [])[astIdx], 10);
-                    return isNaN(val) ? 0 : val;
-                  }
-                }
-              }
-            }
-            return 0;
-          }
-        }
-      }
-    }
-  } catch (e) { /* scoreboard unavailable, not critical */ }
-  return 0;
-}
-
-async function refresh() {
-  try {
-    elCount.classList.add("loading");
-    const [career, liveAst] = await Promise.all([getCareerAssists(), getLiveGameAssists()]);
-    const { total, priorAst, currentAst, currentSeasonName } = career;
-    const grandTotal = total + liveAst;
-
-    document.getElementById("assist-num").textContent = grandTotal.toLocaleString();
-    elCount.classList.remove("loading");
-
-    if (grandTotal > RECORD) {
-      document.getElementById("record-holder").textContent = "Record held by Braden Smith 🚂";
-    }
-
-    const parts = [];
-    if (priorAst) parts.push(`<span>${priorAst}</span> prior seasons`);
-    if (currentAst || currentSeasonName) parts.push(`<span>${currentAst}</span> ${currentSeasonName || "current season"}`);
-    if (liveAst) parts.push(`<span>${liveAst}</span> live game`);
-    elBreakdown.innerHTML = parts.join(" + ");
-
-    elPulse.classList.remove("error");
-    elStatus.textContent = `Updated ${new Date().toLocaleTimeString()}`;
-    elError.style.display = "none";
-  } catch (err) {
-    elPulse.classList.add("error");
-    elStatus.textContent = "Update failed";
-    elError.textContent = err.message;
-    elError.style.display = "block";
-    elCount.classList.remove("loading");
-  }
 }
 
 // Progress bar animation
@@ -143,12 +39,52 @@ function startProgress() {
 }
 
 async function tick() {
-  await Promise.allSettled([refresh(), fetchGameCard()]);
-  startProgress();
+  const version = ++refreshVersion;
+  const sport = SPORTS[activeSport];
+  const panel = document.getElementById("sports-panel");
+  panel.setAttribute("aria-busy", "true");
+  elCardTitle.textContent = "Next Game";
+  elPrevCardTitle.textContent = "Last Game";
+  elStatus.textContent = "Loading " + sport.label.toLowerCase() + "\u2026";
+  elError.style.display = "none";
+  for (const [loading, content, error] of [
+    [elGameLoading, elGameContent, elGameError],
+    [elPrevGameLoading, elPrevGameContent, elPrevGameError]
+  ]) {
+    loading.style.display = "block";
+    content.style.display = "none";
+    error.style.display = "none";
+  }
+
+  try {
+    const events = await fetchAllEvents(sport.api);
+    if (version !== refreshVersion) return;
+    const results = await Promise.allSettled([
+      fetchGameCard(events, sport.api, version),
+      fetchPrevGameCard(events, sport.api, version)
+    ]);
+    if (version !== refreshVersion) return;
+    const errors = results.filter(result => result.status === "rejected");
+    if (errors.length) throw new Error(errors.map(result => result.reason.message).join("; "));
+    elPulse.classList.remove("error");
+    elStatus.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    if (version !== refreshVersion) return;
+    elPulse.classList.add("error");
+    elStatus.textContent = "Update failed";
+    elError.textContent = err.message;
+    elError.style.display = "block";
+    elGameLoading.style.display = "none";
+    elPrevGameLoading.style.display = "none";
+  } finally {
+    if (version === refreshVersion) {
+      panel.setAttribute("aria-busy", "false");
+      startProgress();
+    }
+  }
 }
 
 // ─── Game Card (Live or Next) ────────────────────
-const SCHEDULE_URL = ESPN_V2 + "/teams/" + PURDUE_TEAM_ID + "/schedule";
 const PURDUE_LOGO = "https://a.espncdn.com/i/teamlogos/ncaa/500/2509.png";
 
 const elCardTitle   = document.getElementById("game-card-title");
@@ -156,8 +92,14 @@ const elGameContent = document.getElementById("game-content");
 const elGameLoading = document.getElementById("game-loading");
 const elGameError   = document.getElementById("game-error");
 
-function toLocalTime(utcStr) {
+function toLocalTime(utcStr, timeValid = true) {
   const dt = new Date(utcStr);
+  if (!timeValid) {
+    return dt.toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", year: "numeric",
+      timeZone: "UTC"
+    }) + " \u2014 Time TBD";
+  }
   return dt.toLocaleString("en-US", {
     weekday: "long", month: "long", day: "numeric",
     year: "numeric", hour: "numeric", minute: "2-digit",
@@ -181,43 +123,39 @@ function getRec(t) {
   return (t.records || [])[0]?.summary || "";
 }
 
-async function fetchAllEvents() {
-  const allEvents = [];
-  for (const st of [2, 3, 4]) {
-    try {
-      const data = await espnGet(SCHEDULE_URL + "?seasontype=" + st);
-      allEvents.push(...(data.events || []));
-    } catch (e) { /* season type may not exist */ }
+async function fetchAllEvents(api) {
+  const schedules = await Promise.all([2, 3, 4].map(st =>
+    espnGet(`${api}/teams/${PURDUE_TEAM_ID}/schedule?seasontype=${st}`)
+  ));
+  const events = new Map();
+  for (const schedule of schedules) {
+    for (const event of (schedule.events || [])) events.set(event.id, event);
   }
-  return allEvents;
+  return [...events.values()];
 }
 
-async function fetchGameCard() {
+async function fetchGameCard(events, api, version) {
   try {
-    elGameLoading.style.display = "block";
-    elGameContent.style.display = "none";
-    elGameError.style.display   = "none";
-
-    const events = await fetchAllEvents();
-
     // Separate live games from upcoming
     let liveEvent = null;
     const upcoming = [];
 
     for (const ev of events) {
       const st = ((ev.competitions || [{}])[0].status || {}).type || {};
-      if (st.name === "STATUS_FINAL") continue;
-      if (st.name === "STATUS_IN_PROGRESS" || st.name === "STATUS_HALFTIME" || st.name === "STATUS_END_PERIOD") {
+      if (st.completed || st.name === "STATUS_FINAL" || st.name === "STATUS_CANCELED" || st.name === "STATUS_POSTPONED") continue;
+      if (st.state === "in" || st.name === "STATUS_IN_PROGRESS" || st.name === "STATUS_HALFTIME" || st.name === "STATUS_END_PERIOD") {
         liveEvent = ev;
         break;
       }
-      upcoming.push(ev);
+      if (st.name === "STATUS_SCHEDULED" || (st.state === "pre" && new Date(ev.date) >= new Date())) upcoming.push(ev);
     }
 
     upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (liveEvent) {
-      await renderLiveGame(liveEvent);
+      const summary = await espnGet(`${api}/summary?event=${liveEvent.id}`);
+      if (version !== refreshVersion) return;
+      renderLiveGame(liveEvent, summary);
     } else if (upcoming.length) {
       renderNextGame(upcoming[0]);
     } else {
@@ -227,17 +165,17 @@ async function fetchGameCard() {
       elGameContent.style.display = "block";
     }
   } catch (err) {
+    if (version !== refreshVersion) return;
     elGameLoading.style.display = "none";
     elGameError.textContent = err.message;
     elGameError.style.display = "block";
+    throw err;
   }
 }
 
-async function renderLiveGame(ev) {
+function renderLiveGame(ev, summary) {
   elCardTitle.textContent = "Live Game";
 
-  const eventId = ev.id || (ev.competitions || [{}])[0].id || "";
-  const summary = await espnGet(`${SUMMARY_URL}?event=${eventId}`);
   const header = summary.header || {};
   const comps = header.competitions || [];
   if (!comps.length) throw new Error("No live data available");
@@ -417,7 +355,7 @@ function renderNextGame(ev) {
     html += `<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value live">🔴 LIVE — ${statusDesc}</span></div>`;
   }
 
-  html += `<div class="detail-row"><span class="detail-label">When</span><span class="detail-value">${toLocalTime(ev.date)}</span></div>`;
+  html += `<div class="detail-row"><span class="detail-label">When</span><span class="detail-value">${toLocalTime(ev.date, comp.timeValid !== false)}</span></div>`;
 
   if (venueName) {
     let venueStr = venueName;
@@ -456,19 +394,13 @@ const elPrevGameContent = document.getElementById("prev-game-content");
 const elPrevGameLoading = document.getElementById("prev-game-loading");
 const elPrevGameError   = document.getElementById("prev-game-error");
 
-async function fetchPrevGameCard() {
+async function fetchPrevGameCard(events, api, version) {
   try {
-    elPrevGameLoading.style.display = "block";
-    elPrevGameContent.style.display = "none";
-    elPrevGameError.style.display   = "none";
-
-    const events = await fetchAllEvents();
-
     // Collect all finished games and pick the most recent one
     const finished = [];
     for (const ev of events) {
       const st = ((ev.competitions || [{}])[0].status || {}).type || {};
-      if (st.name === "STATUS_FINAL") finished.push(ev);
+      if (st.completed || st.name === "STATUS_FINAL") finished.push(ev);
     }
 
     finished.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -480,19 +412,21 @@ async function fetchPrevGameCard() {
       return;
     }
 
-    await renderPrevGame(finished[0]);
+    const summary = await espnGet(`${api}/summary?event=${finished[0].id}`);
+    if (version !== refreshVersion) return;
+    renderPrevGame(finished[0], summary);
   } catch (err) {
+    if (version !== refreshVersion) return;
     elPrevGameLoading.style.display = "none";
     elPrevGameError.textContent = err.message;
     elPrevGameError.style.display = "block";
+    throw err;
   }
 }
 
-async function renderPrevGame(ev) {
+function renderPrevGame(ev, summary) {
   elPrevCardTitle.textContent = "Last Game";
 
-  const eventId = ev.id || (ev.competitions || [{}])[0].id || "";
-  const summary = await espnGet(`${SUMMARY_URL}?event=${eventId}`);
   const header = summary.header || {};
   const comps = header.competitions || [];
   if (!comps.length) throw new Error("No game data available");
@@ -645,109 +579,37 @@ elNotifyBtn.addEventListener("click", async () => {
   }
 });
 
-// Local notification helpers (fire from the main thread when no push server)
-let _prevAssistTotal = null;
+const sportTabs = [...document.querySelectorAll(".sport-tab")];
 
-function maybeNotifyMilestone(currentTotal) {
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-  if (!localStorage.getItem("pb_notify")) return;
-
-  if (_prevAssistTotal !== null && currentTotal > _prevAssistTotal) {
-    // Milestone checks
-    if (currentTotal >= RECORD && _prevAssistTotal < RECORD) {
-      new Notification("🚂 RECORD BROKEN!", {
-        body: `Braden Smith just broke the all-time assist record with ${currentTotal} career assists!`,
-        icon: "/purdue_ballers.png"
-      });
-    } else if (currentTotal % 50 === 0) {
-      new Notification("Purdue Ball", {
-        body: `Braden Smith has reached ${currentTotal} career assists! Boiler Up! 🚂`,
-        icon: "/purdue_ballers.png"
-      });
-    }
+function selectSport(tab) {
+  if (tab.dataset.sport === activeSport) return;
+  activeSport = tab.dataset.sport;
+  for (const sportTab of sportTabs) {
+    const selected = sportTab === tab;
+    sportTab.setAttribute("aria-selected", String(selected));
+    sportTab.tabIndex = selected ? 0 : -1;
   }
-  _prevAssistTotal = currentTotal;
+  document.getElementById("sport-title").textContent = SPORTS[activeSport].label;
+  document.getElementById("sports-panel").setAttribute("aria-labelledby", tab.id);
+  tick();
 }
 
-// ─── Share Stats Card (html2canvas) ──────────────
-const elShareBtn = document.getElementById("share-btn");
-
-elShareBtn.addEventListener("click", async () => {
-  const card = elShareBtn.closest(".card");
-  elShareBtn.style.visibility = "hidden";
-
-  try {
-    const canvas = await html2canvas(card, {
-      backgroundColor: "#101010",
-      scale: 2,
-      useCORS: true,
-      logging: false
-    });
-
-    // Add Purdueball.com watermark
-    const ctx = canvas.getContext("2d");
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);   // reset html2canvas transforms
-    const padding = 14;
-    const fontSize = Math.max(18, Math.round(canvas.width * 0.04));
-    const fontSpec = `600 ${fontSize}px 'Oswald', sans-serif`;
-    try { await document.fonts.load(fontSpec); } catch { /* use fallback font if load fails */ }
-    ctx.font = fontSpec;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.fillStyle = "rgba(207, 185, 145, 0.6)";
-    ctx.fillText("purdueball.com", canvas.width - padding, canvas.height - padding);
-    ctx.restore();
-
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-
-      // Use Web Share API if available (mobile)
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], "purdue-ball.png", { type: "image/png" })] })) {
-        try {
-          await navigator.share({
-            title: "Purdue Ball — Braden Smith Assist Tracker",
-            text: `Braden Smith: ${document.getElementById("assist-num").textContent} career assists 🚂\nFollow along at purdueball.com`,
-            files: [new File([blob], "purdue-ball.png", { type: "image/png" })]
-          });
-        } catch {
-          downloadBlob(blob);
-        }
-      } else {
-        downloadBlob(blob);
-      }
-    }, "image/png");
-  } catch {
-    alert("Could not generate image. Try again.");
-  } finally {
-    elShareBtn.style.visibility = "";
-  }
-});
-
-function downloadBlob(blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "purdue-ball.png";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+for (const tab of sportTabs) {
+  tab.addEventListener("click", () => selectSport(tab));
+  tab.addEventListener("keydown", event => {
+    let index = sportTabs.indexOf(tab);
+    if (event.key === "ArrowRight") index = (index + 1) % sportTabs.length;
+    else if (event.key === "ArrowLeft") index = (index - 1 + sportTabs.length) % sportTabs.length;
+    else if (event.key === "Home") index = 0;
+    else if (event.key === "End") index = sportTabs.length - 1;
+    else return;
+    event.preventDefault();
+    sportTabs[index].focus();
+    selectSport(sportTabs[index]);
+  });
 }
-
-// ─── Patched refresh to fire milestone notifications ──
-const _origRefresh = refresh;
-refresh = async function () {
-  await _origRefresh();
-  const numEl = document.getElementById("assist-num");
-  const val = parseInt(numEl.textContent.replace(/,/g, ""), 10);
-  if (!isNaN(val)) maybeNotifyMilestone(val);
-};
 
 // Initial fetch + recurring timer (must be after all declarations)
 checkExistingSubscription();
 tick();
 setInterval(tick, REFRESH_MS);
-
-// Fetch previous game once on load (doesn't need recurring refresh)
-fetchPrevGameCard();
