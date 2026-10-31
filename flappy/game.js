@@ -417,28 +417,116 @@ function drawBird() {
     return;
   }
 
-  ctx.fillStyle = '#f7c948';
-  ctx.beginPath();
-  ctx.arc(0, 0, bird.radius, 0, Math.PI * 2);
-  ctx.fill();
+  drawPete(bird.radius);
+  ctx.restore();
+}
 
-  ctx.fillStyle = '#ff7f50';
+// Cartoon Purdue Pete head, drawn in units of r and facing right.
+function drawPete(r) {
+  const ink = '#141414';
+  const gold = '#cfb991';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1.5, r * 0.1);
+  ctx.strokeStyle = ink;
+
+  // Face with a big square jaw.
+  ctx.fillStyle = '#f3e2bd';
   ctx.beginPath();
-  ctx.moveTo(bird.radius * 0.8, -4);
-  ctx.lineTo(bird.radius * 1.4, 2);
-  ctx.lineTo(bird.radius * 0.8, 6);
+  ctx.moveTo(-0.78 * r, -0.3 * r);
+  ctx.quadraticCurveTo(-0.92 * r, 0.55 * r, -0.45 * r, 0.98 * r);
+  ctx.quadraticCurveTo(0.15 * r, 1.3 * r, 0.75 * r, 1.0 * r);
+  ctx.quadraticCurveTo(1.02 * r, 0.82 * r, 0.95 * r, 0.35 * r);
+  ctx.lineTo(0.88 * r, -0.3 * r);
   ctx.closePath();
   ctx.fill();
+  ctx.stroke();
 
-  ctx.fillStyle = '#fff';
+  // Cheek shading.
+  ctx.fillStyle = 'rgba(190, 140, 90, 0.35)';
   ctx.beginPath();
-  ctx.arc(7, -5, 3.5, 0, Math.PI * 2);
+  ctx.ellipse(-0.42 * r, 0.66 * r, 0.22 * r, 0.14 * r, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#1b1b1b';
+
+  // Eyes.
+  for (const ex of [0.02, 0.5]) {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(ex * r, 0.3 * r, 0.2 * r, 0.22 * r, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.06);
+    ctx.stroke();
+    ctx.fillStyle = '#5a3a1e';
+    ctx.beginPath();
+    ctx.arc((ex + 0.07) * r, 0.33 * r, 0.11 * r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    ctx.arc((ex + 0.08) * r, 0.33 * r, 0.055 * r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Heavy, determined eyebrows.
+  ctx.lineWidth = Math.max(2, r * 0.14);
   ctx.beginPath();
-  ctx.arc(8, -5, 1.5, 0, Math.PI * 2);
+  ctx.moveTo(-0.2 * r, 0.06 * r);
+  ctx.lineTo(0.2 * r, -0.02 * r);
+  ctx.moveTo(0.34 * r, -0.02 * r);
+  ctx.lineTo(0.72 * r, 0.1 * r);
+  ctx.stroke();
+
+  // Nose, smirk, and chin cleft.
+  ctx.lineWidth = Math.max(1.2, r * 0.07);
+  ctx.beginPath();
+  ctx.moveTo(0.3 * r, 0.48 * r);
+  ctx.quadraticCurveTo(0.5 * r, 0.66 * r, 0.3 * r, 0.7 * r);
+  ctx.moveTo(0.02 * r, 0.86 * r);
+  ctx.quadraticCurveTo(0.36 * r, 0.98 * r, 0.7 * r, 0.8 * r);
+  ctx.moveTo(0.32 * r, 1.05 * r);
+  ctx.lineTo(0.34 * r, 1.14 * r);
+  ctx.stroke();
+
+  // Black hard hat dome.
+  ctx.lineWidth = Math.max(1.5, r * 0.1);
+  ctx.fillStyle = '#1c1c1c';
+  ctx.beginPath();
+  ctx.moveTo(-0.95 * r, -0.32 * r);
+  ctx.bezierCurveTo(-0.95 * r, -1.3 * r, 0.95 * r, -1.35 * r, 0.98 * r, -0.32 * r);
+  ctx.closePath();
   ctx.fill();
-  ctx.restore();
+  ctx.stroke();
+
+  // Center ridge and shine.
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = Math.max(1.2, r * 0.09);
+  ctx.beginPath();
+  ctx.moveTo(-0.62 * r, -0.62 * r);
+  ctx.quadraticCurveTo(0, -1.12 * r, 0.62 * r, -0.66 * r);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.beginPath();
+  ctx.arc(-0.2 * r, -0.62 * r, 0.42 * r, Math.PI * 1.1, Math.PI * 1.45);
+  ctx.stroke();
+
+  // Gold "P" on the hat.
+  ctx.fillStyle = gold;
+  ctx.font = `900 ${Math.round(r * 0.62)}px Inter, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('P', 0.2 * r, -0.52 * r);
+
+  // Brim extends forward.
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = Math.max(1.5, r * 0.1);
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath();
+  ctx.moveTo(-1.02 * r, -0.4 * r);
+  ctx.lineTo(1.3 * r, -0.36 * r);
+  ctx.quadraticCurveTo(1.42 * r, -0.22 * r, 1.25 * r, -0.16 * r);
+  ctx.lineTo(-1.0 * r, -0.2 * r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
 }
 
 function drawBasketball(r) {

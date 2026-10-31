@@ -13,7 +13,7 @@ if [ -n "$IP" ]; then
   echo "On your phone (same Wi-Fi) open:"
   echo "  http://$IP:$PORT/        (home)"
   echo "  http://$IP:$PORT/run/    (Purdue Run)"
-  echo "  http://$IP:$PORT/flappy/ (Flappy)"
+  echo "  http://$IP:$PORT/flappy/ (Flappy Pete)"
 else
   echo "Could not auto-detect LAN IP; check System Settings > Wi-Fi."
 fi
