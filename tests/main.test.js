@@ -55,7 +55,7 @@ function app(respond) {
     if (!elements.has(id)) elements.set(id, element(id));
     return elements.get(id);
   };
-  const tabs = ["basketball", "football", "womens-basketball"].map(sport => {
+  const tabs = ["basketball", "football", "womens-basketball", "volleyball"].map(sport => {
     const tab = get(sport + "-tab");
     tab.dataset.sport = sport;
     return tab;
@@ -195,7 +195,7 @@ test("keyboard navigation switches sports and supports Home and End", async () =
   assert.equal(dashboard.tabs[0].attributes["aria-selected"], "true");
   dashboard.tabs[0].listeners.keydown({ key: "End", preventDefault() {} });
   await flush();
-  assert.equal(dashboard.tabs[2].attributes["aria-selected"], "true");
+  assert.equal(dashboard.tabs[3].attributes["aria-selected"], "true");
 });
 
 test("women's basketball uses its own schedule and results endpoints", async () => {
@@ -215,6 +215,25 @@ test("women's basketball uses its own schedule and results endpoints", async () 
   assert.match(dashboard.get("prev-game-content").innerHTML, /70/);
   assert.match(dashboard.get("prev-game-content").innerHTML, /65/);
   assert.ok(dashboard.requests.some(url => url.includes("womens-college-basketball/summary?event=women-last")));
+});
+
+test("volleyball uses Purdue's ESPN schedule and renders match scores", async () => {
+  const next = event("volleyball-next", "STATUS_SCHEDULED", "pre", "2099-11-02T18:00Z", "Volleyball next opponent");
+  const last = event("volleyball-last", "STATUS_FINAL", "post", "2026-10-29T23:00Z", "Rutgers");
+  const dashboard = app(url => url.includes("/summary")
+    ? summary(last, "3", "1")
+    : { events: url.includes("womens-college-volleyball") ? [next, last] : [] });
+  await flush();
+  dashboard.tabs[3].listeners.click();
+  await flush();
+  assert.equal(dashboard.get("sport-title").textContent, "Volleyball");
+  assert.equal(dashboard.get("sports-panel").attributes["aria-labelledby"], "volleyball-tab");
+  assert.match(dashboard.get("game-content").innerHTML, /Volleyball next opponent/);
+  assert.match(dashboard.get("prev-game-content").innerHTML, /Rutgers/);
+  assert.match(dashboard.get("prev-game-content").innerHTML, />3/);
+  assert.match(dashboard.get("prev-game-content").innerHTML, />1/);
+  assert.ok(dashboard.requests.some(url => url.includes("volleyball/womens-college-volleyball/teams/2509/schedule")));
+  assert.ok(dashboard.requests.some(url => url.includes("womens-college-volleyball/summary?event=volleyball-last")));
 });
 
 test("unknown kickoff times are marked TBD and canceled games are excluded", async () => {

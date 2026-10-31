@@ -11,6 +11,10 @@ const SPORTS = {
   "womens-basketball": {
     label: "Women's Basketball",
     api: "https://site.api.espn.com/apis/site/v2/sports/basketball/womens-college-basketball"
+  },
+  volleyball: {
+    label: "Volleyball",
+    api: "https://site.api.espn.com/apis/site/v2/sports/volleyball/womens-college-volleyball"
   }
 };
 const REFRESH_MS = 45_000;
